@@ -4,6 +4,7 @@ pub mod suit;
 use rank::*;
 use suit::*;
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Card(pub Rank, pub Suit);
 
 impl Card {

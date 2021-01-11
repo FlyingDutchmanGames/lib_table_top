@@ -1,7 +1,7 @@
 pub mod card;
 
-use card::Card;
-use card::{rank::Rank::*, suit::Suit::*};
+use self::card::Card;
+use self::card::{rank::Rank::*, suit::Suit::*};
 
 pub type StandardDeck = [Card; 52];
 
@@ -59,3 +59,19 @@ pub const STANDARD_DECK: StandardDeck = [
     Card(Three, Clubs),
     Card(Two, Clubs),
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_standard_deck() {
+        let mut unique_cards = HashSet::new();
+        for card in STANDARD_DECK.iter() {
+            unique_cards.insert(*card);
+        }
+        assert_eq!(unique_cards.len(), 52);
+        assert_eq!(STANDARD_DECK.len(), 52);
+    }
+}
