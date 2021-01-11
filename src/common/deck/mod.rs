@@ -1,18 +1,61 @@
 pub mod card;
 
-use self::card::rank::*;
-use self::card::suit::*;
+use card::Card;
+use card::{rank::Rank::*, suit::Suit::*};
 
-pub struct Card(Rank, Suit);
+pub type StandardDeck = [Card; 52];
 
-impl Card {
-    pub fn color(&self) -> Color {
-        self.1.color()
-    }
-    pub fn suit(&self) -> Suit {
-        self.1
-    }
-    pub fn rank(&self) -> Rank {
-        self.0
-    }
-}
+pub const STANDARD_DECK: StandardDeck = [
+    Card(Ace, Hearts),
+    Card(King, Hearts),
+    Card(Queen, Hearts),
+    Card(Jack, Hearts),
+    Card(Ten, Hearts),
+    Card(Nine, Hearts),
+    Card(Eight, Hearts),
+    Card(Seven, Hearts),
+    Card(Six, Hearts),
+    Card(Five, Hearts),
+    Card(Four, Hearts),
+    Card(Three, Hearts),
+    Card(Two, Hearts),
+    Card(Ace, Spades),
+    Card(King, Spades),
+    Card(Queen, Spades),
+    Card(Jack, Spades),
+    Card(Ten, Spades),
+    Card(Nine, Spades),
+    Card(Eight, Spades),
+    Card(Seven, Spades),
+    Card(Six, Spades),
+    Card(Five, Spades),
+    Card(Four, Spades),
+    Card(Three, Spades),
+    Card(Two, Spades),
+    Card(Ace, Diamonds),
+    Card(King, Diamonds),
+    Card(Queen, Diamonds),
+    Card(Jack, Diamonds),
+    Card(Ten, Diamonds),
+    Card(Nine, Diamonds),
+    Card(Eight, Diamonds),
+    Card(Seven, Diamonds),
+    Card(Six, Diamonds),
+    Card(Five, Diamonds),
+    Card(Four, Diamonds),
+    Card(Three, Diamonds),
+    Card(Two, Diamonds),
+    Card(Ace, Clubs),
+    Card(King, Clubs),
+    Card(Queen, Clubs),
+    Card(Jack, Clubs),
+    Card(Ten, Clubs),
+    Card(Nine, Clubs),
+    Card(Eight, Clubs),
+    Card(Seven, Clubs),
+    Card(Six, Clubs),
+    Card(Five, Clubs),
+    Card(Four, Clubs),
+    Card(Three, Clubs),
+    Card(Two, Clubs),
+];
