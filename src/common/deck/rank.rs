@@ -23,6 +23,9 @@ use Ordering::*;
 use Rank::*;
 
 impl Rank {
+    pub const ALL: [Self; 13] = [
+        Ace, Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King,
+    ];
     pub fn next(&self, order: Ordering) -> Option<Self> {
         match (order, self) {
             (AceHigh, Ace) => None,
