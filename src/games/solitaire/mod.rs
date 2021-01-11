@@ -63,22 +63,76 @@ impl GameState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::deck::card::{rank::Rank::*, suit::Suit::*};
     use crate::common::deck::STANDARD_DECK;
 
     #[test]
     fn test_game_state_new() {
-        let gs = GameState::new(STANDARD_DECK);
+        let mut deck = STANDARD_DECK;
+        deck.sort();
+        let gs = GameState::new(deck);
 
         let mut num_cards = gs.stock.len();
 
-        for (_col, faceup) in gs.faceup {
+        for (_col, faceup) in &gs.faceup {
             num_cards += faceup.len();
         }
 
-        for (_col, facedown) in gs.facedown {
+        for (_col, facedown) in &gs.facedown {
             num_cards += facedown.len();
         }
 
-        assert_eq!(num_cards, 52)
+        assert_eq!(num_cards, 52);
+
+        // face up cards
+        assert_eq!(gs.faceup[Col0], vec!(Card(Ace, Clubs)));
+        assert_eq!(gs.faceup[Col1], vec!(Card(Ace, Diamonds)));
+        assert_eq!(gs.faceup[Col2], vec!(Card(Ace, Hearts)));
+        assert_eq!(gs.faceup[Col3], vec!(Card(Ace, Spades)));
+        assert_eq!(gs.faceup[Col4], vec!(Card(Two, Clubs)));
+        assert_eq!(gs.faceup[Col5], vec!(Card(Two, Diamonds)));
+        assert_eq!(gs.faceup[Col6], vec!(Card(Two, Hearts)));
+
+        // face down cards
+        assert_eq!(gs.facedown[Col0], vec!());
+        assert_eq!(gs.facedown[Col1], vec!(Card(Two, Spades)));
+        assert_eq!(
+            gs.facedown[Col2],
+            vec!(Card(Three, Clubs), Card(Three, Diamonds))
+        );
+        assert_eq!(
+            gs.facedown[Col3],
+            vec!(Card(Three, Hearts), Card(Three, Spades), Card(Four, Clubs))
+        );
+        assert_eq!(
+            gs.facedown[Col4],
+            vec!(
+                Card(Four, Diamonds),
+                Card(Four, Hearts),
+                Card(Four, Spades),
+                Card(Five, Clubs)
+            )
+        );
+        assert_eq!(
+            gs.facedown[Col5],
+            vec!(
+                Card(Five, Diamonds),
+                Card(Five, Hearts),
+                Card(Five, Spades),
+                Card(Six, Clubs),
+                Card(Six, Diamonds)
+            )
+        );
+        assert_eq!(
+            gs.facedown[Col6],
+            vec!(
+                Card(Six, Hearts),
+                Card(Six, Spades),
+                Card(Seven, Clubs),
+                Card(Seven, Diamonds),
+                Card(Seven, Hearts),
+                Card(Seven, Spades)
+            )
+        );
     }
 }

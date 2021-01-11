@@ -1,4 +1,4 @@
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
 pub enum Rank {
     Ace,
     Two,

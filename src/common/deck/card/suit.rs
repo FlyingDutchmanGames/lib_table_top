@@ -1,4 +1,4 @@
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Enum, Hash)]
+#[derive(Copy, Clone, Debug, Enum, PartialEq, PartialOrd, Eq, Hash, Ord)]
 pub enum Suit {
     Clubs,
     Diamonds,
