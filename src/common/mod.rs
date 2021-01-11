@@ -1,1 +1,1 @@
-mod deck;
+pub mod deck;

@@ -84,7 +84,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_rank_next_with_ace_high() {
+    fn test_next_with_ace_high() {
         let test_cases = [
             (Ace, None),
             (King, Some(Ace)),
@@ -107,7 +107,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rank_next_with_ace_low() {
+    fn test_next_with_ace_low() {
         let test_cases = [
             (King, None),
             (Queen, Some(King)),
@@ -130,7 +130,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rank_previous_with_ace_high() {
+    fn test_previous_with_ace_high() {
         let test_cases = [
             (Ace, Some(King)),
             (King, Some(Queen)),
@@ -153,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rank_previous_with_ace_low() {
+    fn test_previous_with_ace_low() {
         let test_cases = [
             (King, Some(Queen)),
             (Queen, Some(Jack)),
