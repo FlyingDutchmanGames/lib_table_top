@@ -1,4 +1,4 @@
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Enum, Hash)]
 pub enum Suit {
     Clubs,
     Diamonds,
@@ -6,7 +6,7 @@ pub enum Suit {
     Spades,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Enum, Hash)]
 pub enum Color {
     Red,
     Black,
