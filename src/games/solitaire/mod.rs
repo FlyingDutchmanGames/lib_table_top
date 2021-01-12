@@ -27,6 +27,15 @@ struct GameState {
     faceup: Tableau,
     foundations: Foundations,
     stock: Vec<Card>,
+    talon: Vec<Card>,
+}
+
+pub enum Action {
+    FlipCard,
+    MoveCardFromFoundation(Card, Col),
+    MoveCardToCol(Card, Col),
+    MoveCardToFoundation(Card),
+    MoveCardToOpenColumn(Card, Col),
 }
 
 impl GameState {
@@ -54,9 +63,30 @@ impl GameState {
         Self {
             foundations: Foundations::new(),
             stock: deck[28..].into(),
+            talon: vec![],
             facedown,
             faceup,
         }
+    }
+
+    pub fn available_actions(&self) -> Vec<Action> {
+        todo!()
+    }
+
+    pub fn open_columns(&self) -> Vec<Col> {
+        self.faceup
+            .iter()
+            .filter(|(_col, cards)| cards.is_empty())
+            .map(|(col, _cards)| col)
+            .collect()
+    }
+
+    pub fn exposed_cards(&self) -> Vec<Card> {
+        self.faceup
+            .iter()
+            .filter_map(|(_col, cards)| cards.get(0))
+            .map(|card| *card)
+            .collect()
     }
 }
 
