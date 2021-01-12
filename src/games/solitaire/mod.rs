@@ -1,8 +1,9 @@
 mod foundations;
-use crate::common::deck::card::rank::Rank::*;
+use crate::common::deck::card::rank::{Ordering::*, Rank::*};
 use crate::common::deck::card::Card;
 use crate::common::deck::StandardDeck;
 use enum_map::EnumMap;
+use std::iter::once;
 
 // https://bicyclecards.com/how-to-play/solitaire/
 
@@ -73,19 +74,34 @@ impl GameState {
     }
 
     pub fn available_actions(&self) -> Vec<Action> {
-        let face_up_kings = self
+        let face_up_cards = self
             .faceup
             .iter()
-            .flat_map(|(_count, cards)| cards)
-            .filter(|card| card.rank() == King);
+            .flat_map(|(_col, cards)| cards)
+            .map(|card| *card)
+            .chain(
+                self.actionable_talon_card()
+                    .into_iter()
+                    .collect::<Vec<Card>>(),
+            );
 
-        let move_kings_to_open_columns = iproduct!(face_up_kings, self.open_columns())
-            .map(|(king, col)| MoveCardToCol(*king, col));
+        let move_cards_to_exposed_cards = iproduct!(face_up_cards.clone(), self.exposed_cards())
+            .filter(|(face_up_card, (_col, exposed_card))| {
+                (face_up_card.color() != exposed_card.color())
+                    && (face_up_card.rank().next(AceLow) == Some(exposed_card.rank()))
+            })
+            .map(|(face_up_card, (col, _exposed_card))| MoveCardToCol(face_up_card, col));
+
+        let move_kings_to_open_columns = iproduct!(
+            face_up_cards.filter(|card| card.rank() == King),
+            self.open_columns()
+        )
+        .map(|(king, col)| MoveCardToCol(king, col));
 
         let move_cards_to_foundations: Vec<Action> = self
             .exposed_cards()
             .iter()
-            .map(|card| *card)
+            .map(|(_col, card)| *card)
             .chain(
                 self.actionable_talon_card()
                     .into_iter()
@@ -95,9 +111,16 @@ impl GameState {
             .map(|card| MoveCardToFoundation(card))
             .collect();
 
-        move_kings_to_open_columns
+        let flip_cards = if self.stock.len() == 0 {
+            ReloadStock
+        } else {
+            FlipCards(1)
+        };
+
+        move_cards_to_exposed_cards
+            .chain(move_kings_to_open_columns)
             .chain(move_cards_to_foundations)
-            .chain(vec![FlipCards(1)])
+            .chain(once(flip_cards))
             .collect()
     }
 
@@ -109,11 +132,11 @@ impl GameState {
             .collect()
     }
 
-    pub fn exposed_cards(&self) -> Vec<Card> {
+    pub fn exposed_cards(&self) -> Vec<(Col, Card)> {
         self.faceup
             .iter()
-            .filter_map(|(_col, cards)| cards.get(0))
-            .map(|card| *card)
+            .filter_map(|(col, cards)| cards.get(0).map(|card| (col, card)))
+            .map(|(col, card)| (col, *card))
             .collect()
     }
 

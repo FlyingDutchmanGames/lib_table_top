@@ -14,6 +14,7 @@ impl Card {
     pub fn suit(&self) -> Suit {
         self.1
     }
+
     pub fn rank(&self) -> Rank {
         self.0
     }
