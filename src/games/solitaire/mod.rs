@@ -34,11 +34,11 @@ struct GameState {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Action {
+    ReloadStock,
     FlipCards(usize),
     MoveCardFromFoundation(Card, Col),
     MoveCardToCol(Card, Col),
     MoveCardToFoundation(Card),
-    MoveCardToOpenColumn(Card, Col),
 }
 
 impl GameState {
@@ -73,23 +73,32 @@ impl GameState {
     }
 
     pub fn available_actions(&self) -> Vec<Action> {
-        let mut actions: Vec<Action> = vec![];
-
-        let mut move_kings_to_open_columns: Vec<Action> = self
+        let face_up_kings = self
             .faceup
             .iter()
-            .flat_map(|(col, cards)| {
-                cards
-                    .iter()
-                    .filter(|card| card.rank() == King)
-                    .map(move |card| MoveCardToCol(*card, col))
-            })
+            .flat_map(|(_count, cards)| cards)
+            .filter(|card| card.rank() == King);
+
+        let move_kings_to_open_columns = iproduct!(face_up_kings, self.open_columns())
+            .map(|(king, col)| MoveCardToCol(*king, col));
+
+        let move_cards_to_foundations: Vec<Action> = self
+            .exposed_cards()
+            .iter()
+            .map(|card| *card)
+            .chain(
+                self.actionable_talon_card()
+                    .into_iter()
+                    .collect::<Vec<Card>>(),
+            )
+            .filter(|card| self.foundations.next_cards_needed().contains(card))
+            .map(|card| MoveCardToFoundation(card))
             .collect();
 
-        actions.append(&mut move_kings_to_open_columns);
-        actions.push(FlipCards(1));
-
-        actions
+        move_kings_to_open_columns
+            .chain(move_cards_to_foundations)
+            .chain(vec![FlipCards(1)])
+            .collect()
     }
 
     pub fn open_columns(&self) -> Vec<Col> {

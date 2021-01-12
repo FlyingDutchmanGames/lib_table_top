@@ -16,6 +16,13 @@ impl Foundations {
         }
     }
 
+    pub fn current_top_cards(&self) -> Vec<Card> {
+        self.0
+            .iter()
+            .filter_map(|(suit, option_rank)| option_rank.map(|rank| Card(rank, suit)))
+            .collect()
+    }
+
     pub fn next_cards_needed(&self) -> Vec<Card> {
         self.0
             .iter()
