@@ -1,4 +1,5 @@
 mod foundations;
+use crate::common::deck::card::rank::Rank::*;
 use crate::common::deck::card::Card;
 use crate::common::deck::StandardDeck;
 use enum_map::EnumMap;
@@ -20,6 +21,7 @@ pub enum Col {
     Col6,
 }
 
+use Action::*;
 use Col::*;
 
 struct GameState {
@@ -30,8 +32,9 @@ struct GameState {
     talon: Vec<Card>,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Action {
-    FlipCard,
+    FlipCards(usize),
     MoveCardFromFoundation(Card, Col),
     MoveCardToCol(Card, Col),
     MoveCardToFoundation(Card),
@@ -70,7 +73,23 @@ impl GameState {
     }
 
     pub fn available_actions(&self) -> Vec<Action> {
-        todo!()
+        let mut actions: Vec<Action> = vec![];
+
+        let mut move_kings_to_open_columns: Vec<Action> = self
+            .faceup
+            .iter()
+            .flat_map(|(col, cards)| {
+                cards
+                    .iter()
+                    .filter(|card| card.rank() == King)
+                    .map(move |card| MoveCardToCol(*card, col))
+            })
+            .collect();
+
+        actions.append(&mut move_kings_to_open_columns);
+        actions.push(FlipCards(1));
+
+        actions
     }
 
     pub fn open_columns(&self) -> Vec<Col> {
@@ -88,12 +107,16 @@ impl GameState {
             .map(|card| *card)
             .collect()
     }
+
+    pub fn actionable_talon_card(&self) -> Option<Card> {
+        self.talon.get(0).map(|card| *card)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::deck::card::{rank::Rank::*, suit::Suit::*};
+    use crate::common::deck::card::suit::Suit::*;
     use crate::common::deck::STANDARD_DECK;
 
     #[test]
@@ -101,6 +124,8 @@ mod tests {
         let mut deck = STANDARD_DECK;
         deck.sort();
         let gs = GameState::new(deck);
+
+        assert_eq!(gs.available_actions(), vec![FlipCards(1)]);
 
         let mut num_cards = gs.stock.len();
 
