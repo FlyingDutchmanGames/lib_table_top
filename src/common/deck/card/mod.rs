@@ -27,3 +27,25 @@ impl Card {
         self.0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rank::Rank::*;
+    use suit::Suit::*;
+
+    #[test]
+    fn test_display() {
+        let test_cases = [
+            (Card(Ace, Spades), "Ace of Spades"),
+            (Card(King, Hearts), "King of Hearts"),
+            (Card(Ten, Clubs), "Ten of Clubs"),
+            (Card(Two, Diamonds), "Two of Diamonds"),
+        ];
+
+        for (card, expected) in test_cases.iter() {
+            let displayed = format!("{}", card);
+            assert_eq!(displayed, *expected);
+        }
+    }
+}
