@@ -15,7 +15,7 @@ pub enum Rank {
     King,
 }
 
-pub enum Ordering {
+enum Ordering {
     AceHigh,
     AceLow,
 }
@@ -26,7 +26,24 @@ impl Rank {
     pub const ALL: [Self; 13] = [
         Ace, Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King,
     ];
-    pub fn next(&self, order: Ordering) -> Option<Self> {
+
+    pub fn next_with_ace_high(&self) -> Option<Self> {
+        self.next(AceHigh)
+    }
+
+    pub fn next_with_ace_low(&self) -> Option<Self> {
+        self.next(AceLow)
+    }
+
+    pub fn previous_with_ace_high(&self) -> Option<Self> {
+        self.previous(AceHigh)
+    }
+
+    pub fn previous_with_ace_low(&self) -> Option<Self> {
+        self.previous(AceLow)
+    }
+
+    fn next(&self, order: Ordering) -> Option<Self> {
         match (order, self) {
             (AceHigh, Ace) => None,
             (AceLow, King) => None,
@@ -34,7 +51,7 @@ impl Rank {
         }
     }
 
-    pub fn previous(&self, order: Ordering) -> Option<Self> {
+    fn previous(&self, order: Ordering) -> Option<Self> {
         match (order, self) {
             (AceHigh, Two) => None,
             (AceLow, Ace) => None,
@@ -103,6 +120,7 @@ mod tests {
 
         for (test, expected) in test_cases.iter() {
             assert_eq!(test.next(AceHigh), *expected);
+            assert_eq!(test.next_with_ace_high(), *expected);
         }
     }
 
@@ -126,6 +144,7 @@ mod tests {
 
         for (test, expected) in test_cases.iter() {
             assert_eq!(test.next(AceLow), *expected);
+            assert_eq!(test.next_with_ace_low(), *expected);
         }
     }
 
@@ -149,6 +168,7 @@ mod tests {
 
         for (test, expected) in test_cases.iter() {
             assert_eq!(test.previous(AceHigh), *expected);
+            assert_eq!(test.previous_with_ace_high(), *expected);
         }
     }
 
@@ -172,6 +192,7 @@ mod tests {
 
         for (test, expected) in test_cases.iter() {
             assert_eq!(test.previous(AceLow), *expected);
+            assert_eq!(test.previous_with_ace_low(), *expected);
         }
     }
 }

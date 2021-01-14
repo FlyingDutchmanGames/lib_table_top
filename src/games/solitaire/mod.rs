@@ -1,5 +1,5 @@
 mod foundations;
-use crate::common::deck::card::rank::{Ordering::*, Rank::*};
+use crate::common::deck::card::rank::Rank::*;
 use crate::common::deck::card::Card;
 use crate::common::deck::StandardDeck;
 use enum_map::EnumMap;
@@ -124,7 +124,7 @@ impl GameState {
         let move_cards_to_exposed_cards = iproduct!(face_up_cards.clone(), self.exposed_cards())
             .filter(|(face_up_card, (_col, exposed_card))| {
                 (face_up_card.color() != exposed_card.color())
-                    && (face_up_card.rank().next(AceLow) == Some(exposed_card.rank()))
+                    && (face_up_card.rank().next_with_ace_low() == Some(exposed_card.rank()))
             })
             .map(|(face_up_card, (col, _exposed_card))| MoveCardToCol(face_up_card, col));
 

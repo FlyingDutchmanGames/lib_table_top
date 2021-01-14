@@ -12,7 +12,7 @@ impl Foundations {
     pub fn next_for_suit(&self, suit: Suit) -> Option<Rank> {
         match self.0[suit] {
             None => Some(Rank::Ace),
-            Some(rank) => rank.next(Ordering::AceLow),
+            Some(rank) => rank.next_with_ace_low(),
         }
     }
 
@@ -28,7 +28,7 @@ impl Foundations {
             .iter()
             .filter_map(|(suit, option_rank)| match option_rank {
                 None => Some(Card(Rank::Ace, suit)),
-                Some(rank) => rank.next(Ordering::AceLow).map(|rank| Card(rank, suit)),
+                Some(rank) => rank.next_with_ace_low().map(|rank| Card(rank, suit)),
             })
             .collect()
     }
