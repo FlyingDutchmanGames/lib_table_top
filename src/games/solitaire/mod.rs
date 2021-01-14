@@ -4,6 +4,7 @@ use crate::common::deck::card::Card;
 use crate::common::deck::StandardDeck;
 use enum_map::EnumMap;
 use std::iter::once;
+use thiserror::Error;
 
 // https://bicyclecards.com/how-to-play/solitaire/
 
@@ -36,8 +37,7 @@ struct GameState {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Action {
     ReloadStock,
-    FlipCards(usize),
-    MoveCardFromFoundation(Card, Col),
+    FlipCards,
     MoveCardToCol(Card, Col),
     MoveCardToFoundation(Card),
 }
@@ -72,18 +72,54 @@ impl GameState {
             faceup,
         }
     }
+}
 
+#[derive(Error, Debug)]
+pub enum TraditionalSolitaireError {
+    #[error("cannot flip cards when stock is empty")]
+    CannotFlipWithEmptyStock,
+    #[error("cannot reload stock when stock is not empty")]
+    CannotReloadStockWhenStockIsNotEmpty,
+    #[error("Cannot move {from} to {to} because {from} must be one less rank than {to} and a different color")]
+    CannotMoveCardOntoCard { from: Card, to: Card },
+}
+
+use TraditionalSolitaireError::*;
+
+impl GameState {
+    pub fn apply_action(&mut self, action: Action) -> Result<(), TraditionalSolitaireError> {
+        match action {
+            ReloadStock => self.reload_stock(),
+            FlipCards => self.flip_cards(),
+            MoveCardToCol(_card, _col) => todo!(),
+            MoveCardToFoundation(_card) => todo!(),
+        }
+    }
+
+    pub fn reload_stock(&mut self) -> Result<(), TraditionalSolitaireError> {
+        if self.stock.len() == 0 {
+            std::mem::swap(&mut self.stock, &mut self.talon);
+            self.stock.reverse();
+            Ok(())
+        } else {
+            Err(CannotFlipWithEmptyStock)
+        }
+    }
+
+    pub fn flip_cards(&mut self) -> Result<(), TraditionalSolitaireError> {
+        match self.stock.pop() {
+            Some(card) => {
+                self.talon.push(card);
+                Ok(())
+            }
+            None => Err(CannotFlipWithEmptyStock),
+        }
+    }
+}
+
+impl GameState {
     pub fn available_actions(&self) -> Vec<Action> {
-        let face_up_cards = self
-            .faceup
-            .iter()
-            .flat_map(|(_col, cards)| cards)
-            .map(|card| *card)
-            .chain(
-                self.actionable_talon_card()
-                    .into_iter()
-                    .collect::<Vec<Card>>(),
-            );
+        let face_up_cards = self.face_up_cards();
 
         let move_cards_to_exposed_cards = iproduct!(face_up_cards.clone(), self.exposed_cards())
             .filter(|(face_up_card, (_col, exposed_card))| {
@@ -93,10 +129,10 @@ impl GameState {
             .map(|(face_up_card, (col, _exposed_card))| MoveCardToCol(face_up_card, col));
 
         let move_kings_to_open_columns = iproduct!(
-            face_up_cards.filter(|card| card.rank() == King),
+            face_up_cards.iter().filter(|card| card.rank() == King),
             self.open_columns()
         )
-        .map(|(king, col)| MoveCardToCol(king, col));
+        .map(|(king, col)| MoveCardToCol(*king, col));
 
         let move_cards_to_foundations: Vec<Action> = self
             .exposed_cards()
@@ -114,7 +150,7 @@ impl GameState {
         let flip_cards = if self.stock.len() == 0 {
             ReloadStock
         } else {
-            FlipCards(1)
+            FlipCards
         };
 
         move_cards_to_exposed_cards
@@ -143,6 +179,20 @@ impl GameState {
     pub fn actionable_talon_card(&self) -> Option<Card> {
         self.talon.get(0).map(|card| *card)
     }
+
+    pub fn face_up_cards(&self) -> Vec<Card> {
+        self.faceup
+            .iter()
+            .flat_map(|(_col, cards)| cards)
+            .map(|card| *card)
+            .chain(self.foundations.current_top_cards())
+            .chain(
+                self.actionable_talon_card()
+                    .into_iter()
+                    .collect::<Vec<Card>>(),
+            )
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -157,7 +207,7 @@ mod tests {
         deck.sort();
         let gs = GameState::new(deck);
 
-        assert_eq!(gs.available_actions(), vec![FlipCards(1)]);
+        assert_eq!(gs.available_actions(), vec![FlipCards]);
 
         let mut num_cards = gs.stock.len();
 
