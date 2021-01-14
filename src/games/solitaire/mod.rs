@@ -207,8 +207,6 @@ mod tests {
         deck.sort();
         let gs = GameState::new(deck);
 
-        assert_eq!(gs.available_actions(), vec![FlipCards]);
-
         let mut num_cards = gs.stock.len();
 
         for (_col, faceup) in &gs.faceup {
