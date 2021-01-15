@@ -36,10 +36,10 @@ struct GameState {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Action {
-    ReloadStock,
     FlipCards,
     MoveCardToCol(Card, Col),
     MoveCardToFoundation(Card),
+    ReloadStock,
 }
 
 impl GameState {
@@ -74,14 +74,29 @@ impl GameState {
     }
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum TraditionalSolitaireError {
     #[error("cannot flip cards when stock is empty")]
     CannotFlipWithEmptyStock,
     #[error("cannot reload stock when stock is not empty")]
     CannotReloadStockWhenStockIsNotEmpty,
-    #[error("Cannot move {from} to {to} because {from} must be one less rank than {to} and a different color")]
+    #[error("cannot move {from} to {to} because {from} must be one less rank than {to} and a different color")]
     CannotMoveCardOntoCard { from: Card, to: Card },
+    #[error("can only move exposed cards (bottom of tableau or top of talon)")]
+    CannotMoveNonExposedCard,
+    #[error("only kings can move to empty columns, the '{attempted}' if not a king")]
+    CannotMoveNonKingToEmptyCol { attempted: Card },
+    #[error("can not place '{attempted}' on foundation, the needed card is '{needed:?}'")]
+    CannotPlaceOnFoundation {
+        attempted: Card,
+        needed: Option<Card>,
+    },
+
+    #[error("can not remove '{attempted}' from foundation, the current card is '{current:?}'")]
+    CannotRemoveFromFoundation {
+        attempted: Card,
+        current: Option<Card>,
+    },
 }
 
 use TraditionalSolitaireError::*;
@@ -91,12 +106,59 @@ impl GameState {
         match action {
             ReloadStock => self.reload_stock(),
             FlipCards => self.flip_cards(),
-            MoveCardToCol(_card, _col) => todo!(),
-            MoveCardToFoundation(_card) => todo!(),
+            MoveCardToCol(card, col) => self.move_card_to_col(card, col),
+            MoveCardToFoundation(card) => self.move_card_to_foundation(card),
         }
     }
 
-    pub fn reload_stock(&mut self) -> Result<(), TraditionalSolitaireError> {
+    fn move_card_to_col(&mut self, card: Card, col: Col) -> Result<(), TraditionalSolitaireError> {
+        // card can be moved to spot
+        let current_card: Option<&Card> = self.faceup[col].last();
+
+        match (current_card, card.rank()) {
+            (None, some_rank) if some_rank != King => {
+                (return Err(CannotMoveNonKingToEmptyCol { attempted: card }))
+            }
+            (Some(current_card), _) => {
+                if !can_move_card_to_card(card, *current_card) {
+                    return Err(CannotMoveCardOntoCard {
+                        from: card,
+                        to: *current_card,
+                    });
+                }
+            }
+            _ => (),
+        }
+
+        // move the card
+
+        todo!()
+    }
+
+    fn move_card_to_foundation(&mut self, card: Card) -> Result<(), TraditionalSolitaireError> {
+        let exposed_card_column = self
+            .exposed_cards()
+            .iter()
+            .find(|(_col, exposed_card)| *exposed_card == card)
+            .map(|(col, _card)| *col);
+        let is_top_of_talon = self.actionable_talon_card() == Some(card);
+
+        if (exposed_card_column != None) || is_top_of_talon {
+            self.foundations.add(card)?;
+            if is_top_of_talon {
+                self.talon.pop();
+            }
+
+            if let Some(col) = exposed_card_column {
+                self.faceup[col].pop();
+            }
+            Ok(())
+        } else {
+            Err(CannotMoveNonExposedCard)
+        }
+    }
+
+    fn reload_stock(&mut self) -> Result<(), TraditionalSolitaireError> {
         if self.stock.len() == 0 {
             std::mem::swap(&mut self.stock, &mut self.talon);
             self.stock.reverse();
@@ -106,7 +168,7 @@ impl GameState {
         }
     }
 
-    pub fn flip_cards(&mut self) -> Result<(), TraditionalSolitaireError> {
+    fn flip_cards(&mut self) -> Result<(), TraditionalSolitaireError> {
         match self.stock.pop() {
             Some(card) => {
                 self.talon.push(card);
@@ -115,6 +177,11 @@ impl GameState {
             None => Err(CannotFlipWithEmptyStock),
         }
     }
+}
+
+fn can_move_card_to_card(card: Card, destination: Card) -> bool {
+    (card.rank().next_with_ace_low() == Some(destination.rank()))
+        && (card.color() != destination.color())
 }
 
 impl GameState {
@@ -171,7 +238,7 @@ impl GameState {
     pub fn exposed_cards(&self) -> Vec<(Col, Card)> {
         self.faceup
             .iter()
-            .filter_map(|(col, cards)| cards.get(0).map(|card| (col, card)))
+            .filter_map(|(col, cards)| cards.last().map(|card| (col, card)))
             .map(|(col, card)| (col, *card))
             .collect()
     }
@@ -200,6 +267,29 @@ mod tests {
     use super::*;
     use crate::common::deck::card::suit::Suit::*;
     use crate::common::deck::STANDARD_DECK;
+
+    #[test]
+    fn test_can_move_card_to_card() {
+        let cards_you_can_move = [
+            (Card(Ace, Spades), Card(Two, Diamonds)),
+            (Card(Three, Hearts), Card(Four, Clubs)),
+        ];
+
+        for (card, destination) in cards_you_can_move.iter() {
+            assert!(can_move_card_to_card(*card, *destination))
+        }
+
+        let cards_you_cant_move = [
+            (Card(Ace, Spades), Card(Two, Spades)),
+            (Card(Ace, Spades), Card(Two, Clubs)),
+            (Card(Ace, Spades), Card(Three, Hearts)),
+            (Card(King, Spades), Card(Ace, Hearts)),
+        ];
+
+        for (card, destination) in cards_you_cant_move.iter() {
+            assert!(!can_move_card_to_card(*card, *destination))
+        }
+    }
 
     #[test]
     fn test_game_state_new() {

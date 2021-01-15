@@ -1,7 +1,8 @@
+use super::TraditionalSolitaireError;
+use super::TraditionalSolitaireError::*;
 use crate::common::deck::card::Card;
 use crate::common::deck::card::{rank::*, suit::*};
 use enum_map::EnumMap;
-use thiserror::Error;
 
 pub struct Foundations(EnumMap<Suit, Option<Rank>>);
 
@@ -39,25 +40,8 @@ impl Foundations {
     }
 }
 
-#[derive(Error, Debug, PartialEq, Eq)]
-pub enum FoundationError {
-    #[error("Can not place '{attempted}' on foundation, the needed card is '{needed:?}'")]
-    CannotPlaceOnFoundation {
-        attempted: Card,
-        needed: Option<Card>,
-    },
-
-    #[error("Can not remove '{attempted}' from foundation, the current card is '{current:?}'")]
-    CannotRemoveFromFoundation {
-        attempted: Card,
-        current: Option<Card>,
-    },
-}
-
-use FoundationError::*;
-
 impl Foundations {
-    fn add(&mut self, card: Card) -> Result<(), FoundationError> {
+    pub fn add(&mut self, card: Card) -> Result<(), TraditionalSolitaireError> {
         let needed = self.next_for_suit(card.suit());
 
         if needed == Some(card) {
@@ -71,7 +55,7 @@ impl Foundations {
         }
     }
 
-    fn remove(&mut self, card: Card) -> Result<(), FoundationError> {
+    pub fn remove(&mut self, card: Card) -> Result<(), TraditionalSolitaireError> {
         let current = self.current_for_suit(card.suit());
 
         if current == Some(card) {
