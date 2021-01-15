@@ -45,19 +45,19 @@ pub enum Action {
 impl GameState {
     pub fn new(deck: StandardDeck) -> Self {
         let faceup: Tableau = enum_map! {
-            Col0 => vec!(deck[00]),
-            Col1 => vec!(deck[01]),
-            Col2 => vec!(deck[02]),
-            Col3 => vec!(deck[03]),
-            Col4 => vec!(deck[04]),
-            Col5 => vec!(deck[05]),
-            Col6 => vec!(deck[06]),
+            Col0 => vec!(deck[0]),
+            Col1 => vec!(deck[1]),
+            Col2 => vec!(deck[2]),
+            Col3 => vec!(deck[3]),
+            Col4 => vec!(deck[4]),
+            Col5 => vec!(deck[5]),
+            Col6 => vec!(deck[6]),
         };
 
         let facedown: Tableau = enum_map! {
             Col0 => vec!(),
-            Col1 => vec!(deck[07]),
-            Col2 => vec!(deck[08], deck[09]),
+            Col1 => vec!(deck[7]),
+            Col2 => vec!(deck[8], deck[9]),
             Col3 => vec!(deck[10], deck[11], deck[12]),
             Col4 => vec!(deck[13], deck[14], deck[15], deck[16]),
             Col5 => vec!(deck[17], deck[18], deck[19], deck[20], deck[21]),
@@ -117,7 +117,7 @@ impl GameState {
 
         match (current_card, card.rank()) {
             (None, some_rank) if some_rank != King => {
-                (return Err(CannotMoveNonKingToEmptyCol { attempted: card }))
+                return Err(CannotMoveNonKingToEmptyCol { attempted: card })
             }
             (Some(current_card), _) => {
                 if !can_move_card_to_card(card, *current_card) {
@@ -159,7 +159,7 @@ impl GameState {
     }
 
     fn reload_stock(&mut self) -> Result<(), TraditionalSolitaireError> {
-        if self.stock.len() == 0 {
+        if self.stock.is_empty() {
             std::mem::swap(&mut self.stock, &mut self.talon);
             self.stock.reverse();
             Ok(())
@@ -211,10 +211,10 @@ impl GameState {
                     .collect::<Vec<Card>>(),
             )
             .filter(|card| self.foundations.next_cards_needed().contains(card))
-            .map(|card| MoveCardToFoundation(card))
+            .map(MoveCardToFoundation)
             .collect();
 
-        let flip_cards = if self.stock.len() == 0 {
+        let flip_cards = if self.stock.is_empty() {
             ReloadStock
         } else {
             FlipCards
@@ -244,14 +244,13 @@ impl GameState {
     }
 
     pub fn actionable_talon_card(&self) -> Option<Card> {
-        self.talon.get(0).map(|card| *card)
+        self.talon.get(0).copied()
     }
 
     pub fn face_up_cards(&self) -> Vec<Card> {
         self.faceup
             .iter()
-            .flat_map(|(_col, cards)| cards)
-            .map(|card| *card)
+            .flat_map(|(_col, cards)| cards).copied()
             .chain(self.foundations.current_top_cards())
             .chain(
                 self.actionable_talon_card()
