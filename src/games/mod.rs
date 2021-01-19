@@ -1,1 +1,1 @@
-mod solitaire;
+pub mod solitaire;

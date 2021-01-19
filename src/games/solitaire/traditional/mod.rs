@@ -7,6 +7,7 @@ use std::iter::once;
 use thiserror::Error;
 
 // https://bicyclecards.com/how-to-play/solitaire/
+// https://www.coololdgames.com/card-games/solitaire/
 
 use foundations::Foundations;
 
@@ -26,7 +27,7 @@ pub enum Col {
 use Action::*;
 use Col::*;
 
-struct GameState {
+pub struct GameState {
     facedown: Tableau,
     faceup: Tableau,
     foundations: Foundations,
@@ -40,6 +41,10 @@ pub enum Action {
     MoveCardToCol(Card, Col),
     MoveCardToFoundation(Card),
     ReloadStock,
+}
+
+pub fn new(deck: StandardDeck) -> GameState {
+    GameState::new(deck)
 }
 
 impl GameState {
@@ -250,7 +255,8 @@ impl GameState {
     pub fn face_up_cards(&self) -> Vec<Card> {
         self.faceup
             .iter()
-            .flat_map(|(_col, cards)| cards).copied()
+            .flat_map(|(_col, cards)| cards)
+            .copied()
             .chain(self.foundations.current_top_cards())
             .chain(
                 self.actionable_talon_card()
