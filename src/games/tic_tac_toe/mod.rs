@@ -13,8 +13,10 @@ use Marker::*;
 pub enum Error {
     #[error("space is taken")]
     SpaceIsTaken,
-    #[error("not {:?}'s turn", attempted_player)]
-    OtherPlayerTurn { attempted_player: Marker },
+    #[error("not {:?}'s turn", attempted)]
+    OtherPlayerTurn { attempted: Marker },
+    #[error("baord is full")]
+    BoardIsFull,
 }
 
 use Error::*;
@@ -45,6 +47,30 @@ impl Col {
 
 use Col::*;
 
+const POSSIBLE_WINS: [[(Col, Row); 3]; 8] = [
+    // Fill up a row
+    [(Col0, Row0), (Col0, Row1), (Col0, Row2)],
+    [(Col1, Row0), (Col1, Row1), (Col1, Row2)],
+    [(Col2, Row0), (Col2, Row1), (Col2, Row2)],
+    // Fill up a col
+    [(Col0, Row0), (Col1, Row0), (Col2, Row0)],
+    [(Col0, Row1), (Col1, Row1), (Col2, Row1)],
+    [(Col0, Row2), (Col1, Row2), (Col2, Row2)],
+    // Diagonal
+    [(Col0, Row0), (Col1, Row1), (Col2, Row2)],
+    [(Col2, Row0), (Col1, Row1), (Col0, Row2)],
+];
+
+type Position = (Col, Row);
+
+pub enum GameResult {
+    InProgress,
+    Draw,
+    Win(Marker, [(Col, Row); 3]),
+}
+
+use GameResult::*;
+
 pub struct GameState {
     board: EnumMap<Col, EnumMap<Row, Option<Marker>>>,
 }
@@ -56,6 +82,14 @@ impl GameState {
         }
     }
 
+    pub fn at_position(&self, (col, row): Position) -> Option<Marker> {
+        self.board[col][row]
+    }
+
+    pub fn is_full(&self) -> bool {
+        iproduct!(&Col::ALL, &Row::ALL).all(|(&col, &row)| self.at_position((col, row)).is_some())
+    }
+
     pub fn available(&self) -> Vec<(Col, Row)> {
         iproduct!(&Col::ALL, &Row::ALL)
             .filter(|&(&col, &row)| self.board[col][row].is_none())
@@ -63,7 +97,11 @@ impl GameState {
             .collect()
     }
 
-    pub fn whose_turn(&self) -> Marker {
+    pub fn whose_turn(&self) -> Option<Marker> {
+        if self.is_full() {
+            return None;
+        }
+
         let mut count: EnumMap<Marker, u8> = enum_map! { _ => 0 };
 
         self.board
@@ -73,26 +111,54 @@ impl GameState {
             .for_each(|marker| count[marker] += 1);
 
         if count[X] == count[O] {
-            X
+            Some(X)
         } else {
-            O
+            Some(O)
         }
     }
 
-    pub fn make_move(&mut self, marker: Marker, (col, row): (Col, Row)) -> Result<(), Error> {
-        if marker != self.whose_turn() {
-            return Err(OtherPlayerTurn {
-                attempted_player: marker,
-            });
+    pub fn game_status(&self) -> GameResult {
+        let win = POSSIBLE_WINS
+            .iter()
+            .filter_map(|&possibility| {
+                let [a, b, c] = possibility.map(|position| self.at_position(position));
+                if a == b && b == c {
+                    a.map(|marker| Win(marker, possibility))
+                } else {
+                    None
+                }
+            })
+            .nth(0);
+
+        if let Some(win) = win {
+            return win;
+        } else {
         }
 
-        if self.board[col][row] != None {
-            return Err(SpaceIsTaken);
+        match win {
+            Some(win) => win,
+            None => {
+                if self.is_full() {
+                    Draw
+                } else {
+                    InProgress
+                }
+            }
         }
+    }
 
-        self.board[col][row] = Some(marker);
-
-        Ok(())
+    pub fn make_move(&mut self, marker: Marker, (col, row): Position) -> Result<(), Error> {
+        match self.whose_turn() {
+            Some(current_turn) if current_turn == marker => match self.at_position((col, row)) {
+                Some(_) => Err(SpaceIsTaken),
+                None => {
+                    self.board[col][row] = Some(marker);
+                    Ok(())
+                }
+            },
+            Some(_) => Err(OtherPlayerTurn { attempted: marker }),
+            None => Err(BoardIsFull),
+        }
     }
 }
 
@@ -120,17 +186,15 @@ mod tests {
     #[test]
     fn test_make_move() {
         let mut game_state = GameState::new();
-        assert_eq!(game_state.whose_turn(), X);
+        assert_eq!(game_state.whose_turn(), Some(X));
         assert_eq!(game_state.make_move(X, (Col1, Row1)), Ok(()));
 
-        assert_eq!(game_state.whose_turn(), O);
+        assert_eq!(game_state.whose_turn(), Some(O));
 
         assert_eq!(game_state.make_move(O, (Col1, Row1)), Err(SpaceIsTaken));
         assert_eq!(
             game_state.make_move(X, (Col1, Row1)),
-            Err(OtherPlayerTurn {
-                attempted_player: X
-            })
+            Err(OtherPlayerTurn { attempted: X })
         );
 
         assert_eq!(game_state.make_move(O, (Col2, Row2)), Ok(()));
