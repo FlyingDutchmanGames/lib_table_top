@@ -27,20 +27,22 @@ fn test_you_cant_go_twice_in_a_row() {
 fn test_you_can_play_and_draw() {
     let mut game = GameState::new();
 
-    let result = game.make_move(X, (Col2, Row2));
-    assert!(result.is_ok());
+    let moves = [
+        (X, (Col0, Row0)),
+        (O, (Col1, Row0)),
+        (X, (Col2, Row0)),
+        (O, (Col2, Row1)),
+        (X, (Col0, Row1)),
+        (O, (Col2, Row2)),
+        (X, (Col1, Row1)),
+        (O, (Col0, Row2)),
+        (X, (Col1, Row2)),
+    ];
 
-    let result = game.make_move(O, (Col0, Row1));
-    assert!(result.is_ok());
-
-    game.available()
-        .iter()
-        .zip([X, O].iter().cycle())
-        .for_each(|(&position, &marker)| {
-            let result = game.make_move(marker, position);
-            assert!(result.is_ok());
-        });
-
+    for &(marker, position) in &moves {
+        let r = game.make_move(marker, position);
+        assert!(r.is_ok())
+    }
     assert_eq!(game.status(), Status::Draw);
 }
 
