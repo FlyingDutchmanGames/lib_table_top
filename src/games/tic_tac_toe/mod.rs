@@ -1,4 +1,6 @@
+use colored::*;
 use enum_map::EnumMap;
+use std::fmt;
 use thiserror::Error;
 
 #[derive(Copy, Clone, Debug, Enum, PartialEq, Eq)]
@@ -75,6 +77,54 @@ use Status::*;
 
 pub struct GameState {
     board: EnumMap<Col, EnumMap<Row, Option<Marker>>>,
+}
+
+impl fmt::Display for GameState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let status = self.status();
+
+        let markers: Vec<Vec<ColoredString>> = self
+            .board
+            .iter()
+            .map(|(col_num, row)| {
+                row.iter()
+                    .map(|(row_num, marker)| {
+                        let mark = match marker {
+                            Some(X) => "X".blue(),
+                            Some(O) => "O".red(),
+                            None => "*".normal(),
+                        };
+
+                        if let Win { spaces, .. } = status {
+                            if spaces.contains(&(col_num, row_num)) {
+                                return mark.bold();
+                            }
+                        }
+
+                        mark
+                    })
+                    .collect()
+            })
+            .collect();
+        write!(
+            f,
+            r#"
+2  {} {} {}
+1  {} {} {}
+0  {} {} {}
+   0 1 2
+"#,
+            markers[0][2],
+            markers[1][2],
+            markers[2][2],
+            markers[0][1],
+            markers[1][1],
+            markers[2][1],
+            markers[0][0],
+            markers[1][0],
+            markers[2][0]
+        )
+    }
 }
 
 impl GameState {
@@ -202,5 +252,36 @@ mod tests {
         );
 
         assert_eq!(game_state.make_move(O, (Col2, Row2)), Ok(()));
+    }
+
+    #[test]
+    fn test_you_can_format_it() {
+        // new game
+        let mut game_state = GameState::new();
+        println!("{}", game_state);
+        assert_eq!(
+            format!("{}", game_state),
+            "\n2  * * *\n1  * * *\n0  * * *\n   0 1 2\n"
+        );
+
+        // a couple of moves
+        let _ = game_state.make_move(X, (Col0, Row0));
+        let _ = game_state.make_move(O, (Col2, Row2));
+        println!("{}", game_state);
+        assert_eq!(
+            format!("{}", game_state),
+            "\n2  * * \u{1b}[31mO\u{1b}[0m\n1  * * *\n0  \u{1b}[34mX\u{1b}[0m * *\n   0 1 2\n"
+        );
+
+        // with a win
+        let _ = game_state.make_move(X, (Col0, Row1));
+        let _ = game_state.make_move(O, (Col2, Row1));
+        let _ = game_state.make_move(X, (Col0, Row2));
+
+        println!("{}", game_state);
+        assert_eq!(
+            format!("{}", game_state),
+            "\n2  \u{1b}[1;34mX\u{1b}[0m * \u{1b}[31mO\u{1b}[0m\n1  \u{1b}[1;34mX\u{1b}[0m * \u{1b}[31mO\u{1b}[0m\n0  \u{1b}[1;34mX\u{1b}[0m * *\n   0 1 2\n"
+        );
     }
 }

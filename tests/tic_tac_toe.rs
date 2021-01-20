@@ -24,6 +24,27 @@ fn test_you_cant_go_twice_in_a_row() {
 }
 
 #[test]
+fn test_you_can_play_and_draw() {
+    let mut game = GameState::new();
+
+    let result = game.make_move(X, (Col2, Row2));
+    assert!(result.is_ok());
+
+    let result = game.make_move(O, (Col0, Row1));
+    assert!(result.is_ok());
+
+    game.available()
+        .iter()
+        .zip([X, O].iter().cycle())
+        .for_each(|(&position, &marker)| {
+            let result = game.make_move(marker, position);
+            assert!(result.is_ok());
+        });
+
+    assert_eq!(game.status(), Status::Draw);
+}
+
+#[test]
 fn test_you_can_play_and_win() {
     let mut game = GameState::new();
     assert_eq!(game.status(), Status::InProgress);

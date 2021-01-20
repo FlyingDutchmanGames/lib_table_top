@@ -9,5 +9,7 @@ extern crate enum_map;
 
 extern crate thiserror;
 
+extern crate colored;
+
 pub mod common;
 pub mod games;
