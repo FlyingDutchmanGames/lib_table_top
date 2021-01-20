@@ -47,7 +47,7 @@ impl Col {
 
 use Col::*;
 
-const POSSIBLE_WINS: [[(Col, Row); 3]; 8] = [
+pub const POSSIBLE_WINS: [[(Col, Row); 3]; 8] = [
     // Fill up a row
     [(Col0, Row0), (Col0, Row1), (Col0, Row2)],
     [(Col1, Row0), (Col1, Row1), (Col1, Row2)],
@@ -61,15 +61,19 @@ const POSSIBLE_WINS: [[(Col, Row); 3]; 8] = [
     [(Col2, Row0), (Col1, Row1), (Col0, Row2)],
 ];
 
-type Position = (Col, Row);
+pub type Position = (Col, Row);
 
-pub enum GameResult {
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Status {
     InProgress,
     Draw,
-    Win(Marker, [(Col, Row); 3]),
+    Win {
+        marker: Marker,
+        spaces: [(Col, Row); 3],
+    },
 }
 
-use GameResult::*;
+use Status::*;
 
 pub struct GameState {
     board: EnumMap<Col, EnumMap<Row, Option<Marker>>>,
@@ -90,7 +94,7 @@ impl GameState {
         iproduct!(&Col::ALL, &Row::ALL).all(|(&col, &row)| self.at_position((col, row)).is_some())
     }
 
-    pub fn available(&self) -> Vec<(Col, Row)> {
+    pub fn available(&self) -> Vec<Position> {
         iproduct!(&Col::ALL, &Row::ALL)
             .filter(|&(&col, &row)| self.board[col][row].is_none())
             .map(|(&col, &row)| (col, row))
@@ -117,13 +121,16 @@ impl GameState {
         }
     }
 
-    pub fn game_status(&self) -> GameResult {
+    pub fn status(&self) -> Status {
         let win = POSSIBLE_WINS
             .iter()
             .filter_map(|&possibility| {
                 let [a, b, c] = possibility.map(|position| self.at_position(position));
                 if a == b && b == c {
-                    a.map(|marker| Win(marker, possibility))
+                    a.map(|marker| Win {
+                        marker,
+                        spaces: possibility,
+                    })
                 } else {
                     None
                 }
