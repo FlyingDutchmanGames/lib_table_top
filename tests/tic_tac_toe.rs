@@ -1,6 +1,27 @@
 use lib_table_top::games::tic_tac_toe::{
-    Col::*, GameState, Marker::*, Position, Row::*, Status, POSSIBLE_WINS,
+    Col::*, Error::*, GameState, Marker::*, Position, Row::*, Status, POSSIBLE_WINS,
 };
+
+#[test]
+fn test_you_cant_go_to_the_same_square_twice() {
+    let position = (Col1, Row1);
+    let mut game = GameState::new();
+    let result = game.make_move(X, position);
+    assert!(result.is_ok());
+    let result = game.make_move(O, position);
+    assert_eq!(result, Err(SpaceIsTaken));
+}
+
+#[test]
+fn test_you_cant_go_twice_in_a_row() {
+    let mut game = GameState::new();
+    assert_eq!(game.whose_turn(), Some(X));
+    let result = game.make_move(X, (Col1, Row1));
+    assert!(result.is_ok());
+    assert_eq!(game.whose_turn(), Some(O));
+    let result = game.make_move(X, (Col0, Row0));
+    assert_eq!(result, Err(OtherPlayerTurn { attempted: X }));
+}
 
 #[test]
 fn test_you_can_play_and_win() {

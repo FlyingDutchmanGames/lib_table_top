@@ -15,8 +15,6 @@ pub enum Error {
     SpaceIsTaken,
     #[error("not {:?}'s turn", attempted)]
     OtherPlayerTurn { attempted: Marker },
-    #[error("baord is full")]
-    BoardIsFull,
 }
 
 use Error::*;
@@ -155,16 +153,15 @@ impl GameState {
     }
 
     pub fn make_move(&mut self, marker: Marker, (col, row): Position) -> Result<(), Error> {
+        if self.at_position((col, row)).is_some() {
+            return Err(SpaceIsTaken);
+        }
         match self.whose_turn() {
-            Some(current_turn) if current_turn == marker => match self.at_position((col, row)) {
-                Some(_) => Err(SpaceIsTaken),
-                None => {
-                    self.board[col][row] = Some(marker);
-                    Ok(())
-                }
-            },
-            Some(_) => Err(OtherPlayerTurn { attempted: marker }),
-            None => Err(BoardIsFull),
+            Some(current_turn) if current_turn == marker => {
+                self.board[col][row] = Some(marker);
+                Ok(())
+            }
+            _ => Err(OtherPlayerTurn { attempted: marker }),
         }
     }
 }
@@ -200,7 +197,7 @@ mod tests {
 
         assert_eq!(game_state.make_move(O, (Col1, Row1)), Err(SpaceIsTaken));
         assert_eq!(
-            game_state.make_move(X, (Col1, Row1)),
+            game_state.make_move(X, (Col1, Row2)),
             Err(OtherPlayerTurn { attempted: X })
         );
 
