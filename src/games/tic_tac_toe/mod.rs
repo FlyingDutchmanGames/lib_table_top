@@ -75,6 +75,7 @@ pub enum Status {
 
 use Status::*;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GameState {
     board: EnumMap<Col, EnumMap<Row, Option<Marker>>>,
 }
