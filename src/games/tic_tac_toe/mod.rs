@@ -138,10 +138,6 @@ impl GameState {
         self.board[col][row]
     }
 
-    pub fn is_full(&self) -> bool {
-        iproduct!(&Col::ALL, &Row::ALL).all(|(&col, &row)| self.at_position((col, row)).is_some())
-    }
-
     pub fn available(&self) -> Vec<Position> {
         iproduct!(&Col::ALL, &Row::ALL)
             .filter(|&(&col, &row)| self.board[col][row].is_none())
@@ -213,6 +209,10 @@ impl GameState {
             }
             _ => Err(OtherPlayerTurn { attempted: marker }),
         }
+    }
+
+    fn is_full(&self) -> bool {
+        iproduct!(&Col::ALL, &Row::ALL).all(|(&col, &row)| self.at_position((col, row)).is_some())
     }
 }
 
