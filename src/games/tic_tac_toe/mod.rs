@@ -134,6 +134,26 @@ impl GameState {
         }
     }
 
+    pub fn board(&self) -> [[Option<Marker>; 3]; 3] {
+        [
+            [
+                self.board[Col0][Row0],
+                self.board[Col0][Row1],
+                self.board[Col0][Row2],
+            ],
+            [
+                self.board[Col1][Row0],
+                self.board[Col1][Row1],
+                self.board[Col1][Row2],
+            ],
+            [
+                self.board[Col2][Row0],
+                self.board[Col2][Row1],
+                self.board[Col2][Row2],
+            ],
+        ]
+    }
+
     pub fn at_position(&self, (col, row): Position) -> Option<Marker> {
         self.board[col][row]
     }
