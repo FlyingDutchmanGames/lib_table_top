@@ -8,12 +8,19 @@ use lib_table_top::games::tic_tac_toe::{
 };
 
 #[test]
+fn test_opponent() {
+    assert_eq!(X, O.opponent());
+    assert_eq!(O, X.opponent());
+}
+
+#[test]
 fn test_new() {
     let game_state = GameState::new();
+    let board = game_state.board();
 
     for &col in &Col::ALL {
         for &row in &Row::ALL {
-            assert_eq!(game_state.board()[col][row], None);
+            assert_eq!(board[col][row], None);
         }
     }
 
@@ -29,6 +36,7 @@ fn test_make_move() {
     let mut game_state = GameState::new();
     assert_eq!(game_state.whose_turn(), Some(X));
     assert_eq!(game_state.make_move(X, (Col1, Row1)), Ok(()));
+    assert_eq!(game_state.history, vec![(X, (Col1, Row1))]);
 
     assert_eq!(game_state.whose_turn(), Some(O));
 
@@ -39,6 +47,30 @@ fn test_make_move() {
     );
 
     assert_eq!(game_state.make_move(O, (Col2, Row2)), Ok(()));
+    assert_eq!(
+        game_state.history,
+        vec![(X, (Col1, Row1)), (O, (Col2, Row2))]
+    );
+}
+
+#[test]
+fn test_undoing_moves() {
+    let mut game_state = GameState::new();
+    assert_eq!(game_state.whose_turn(), Some(X));
+    assert_eq!(game_state.make_move(X, (Col1, Row1)), Ok(()));
+    assert_eq!(game_state.history, vec![(X, (Col1, Row1))]);
+
+    assert_eq!(game_state.whose_turn(), Some(O));
+
+    // undo a made move
+    assert_eq!(game_state.undo(), Some((X, (Col1, Row1))));
+    assert_eq!(game_state.whose_turn(), Some(X));
+    assert_eq!(game_state.history, vec![]);
+
+    // undoing an empty board yields None
+    assert_eq!(game_state.undo(), None);
+    assert_eq!(game_state.undo(), None);
+    assert_eq!(game_state.undo(), None);
 }
 
 #[test]

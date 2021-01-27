@@ -8,7 +8,7 @@ pub enum Marker {
 }
 
 impl Marker {
-    fn opponent(&self) -> Self {
+    pub fn opponent(&self) -> Self {
         match self {
             X => O,
             O => X,
@@ -105,10 +105,6 @@ impl GameState {
         board
     }
 
-    fn is_full(&self) -> bool {
-        self.history.len() == 9
-    }
-
     pub fn available(&self) -> Vec<Position> {
         let board = self.board();
 
@@ -148,6 +144,10 @@ impl GameState {
             .nth(0);
 
         win.unwrap_or_else(|| if self.is_full() { Draw } else { InProgress })
+    }
+
+    fn is_full(&self) -> bool {
+        self.history.len() == 9
     }
 }
 
