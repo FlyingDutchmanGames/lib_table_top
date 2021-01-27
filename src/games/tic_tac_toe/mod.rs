@@ -75,14 +75,12 @@ pub enum Status {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GameState {
     history: Vec<(Marker, Position)>,
-    board: Board,
 }
 
 impl GameState {
     pub fn new() -> Self {
         GameState {
             history: Vec::with_capacity(9),
-            board: enum_map! { _ => enum_map! { _ => None } },
         }
     }
 
@@ -96,13 +94,18 @@ impl GameState {
         board
     }
 
-    pub fn at_position(&self, (col, row): Position) -> Option<Marker> {
-        self.board[col][row]
+    pub fn at_position(&self, position: Position) -> Option<Marker> {
+        self.history
+            .iter()
+            .find(|&(_marker, pos)| *pos == position)
+            .map(|(marker, _)| *marker)
     }
 
     pub fn available(&self) -> Vec<Position> {
+        let board = self.board();
+
         iproduct!(&Col::ALL, &Row::ALL)
-            .filter(|&(&col, &row)| self.board[col][row].is_none())
+            .filter(|&(&col, &row)| board[col][row].is_none())
             .map(|(&col, &row)| (col, row))
             .collect()
     }
@@ -112,18 +115,12 @@ impl GameState {
             return None;
         }
 
-        let mut count: EnumMap<Marker, u8> = enum_map! { _ => 0 };
-
-        self.board
-            .iter()
-            .flat_map(|(_col_num, row)| row.iter())
-            .filter_map(|(_row_num, &marker)| marker)
-            .for_each(|marker| count[marker] += 1);
-
-        if count[X] == count[O] {
-            Some(X)
-        } else {
-            Some(O)
+        match &self.history.last() {
+            None => Some(X),
+            some => some.map(|(marker, _position)| match marker {
+                X => O,
+                O => X,
+            }),
         }
     }
 
@@ -167,7 +164,6 @@ impl GameState {
         match self.whose_turn() {
             Some(current_turn) if current_turn == marker => {
                 self.history.push((marker, (col, row)));
-                self.board[col][row] = Some(marker);
                 Ok(())
             }
             _ => Err(OtherPlayerTurn { attempted: marker }),
@@ -189,7 +185,7 @@ mod tests {
 
         for &col in &Col::ALL {
             for &row in &Row::ALL {
-                assert_eq!(game_state.board[col][row], None);
+                assert_eq!(game_state.board()[col][row], None);
             }
         }
 
