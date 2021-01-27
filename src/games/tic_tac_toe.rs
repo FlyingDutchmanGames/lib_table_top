@@ -98,9 +98,12 @@ impl GameState {
     pub fn board(&self) -> Board {
         let mut board = enum_map! { _ => enum_map! { _ => None }};
 
-        for &(marker, (col, row)) in &self.history {
-            board[col][row] = Some(marker);
-        }
+        self
+            .history
+            .iter()
+            .for_each(|&(marker, (col, row))| {
+                board[col][row] = Some(marker);
+            });
 
         board
     }
@@ -114,19 +117,19 @@ impl GameState {
 
     pub fn whose_turn(&self) -> Option<Marker> {
         if self.is_full() {
-            return None;
+            None
+        } else {
+            self.history
+                .last()
+                .map(|(marker, _pos)| marker.opponent())
+                .or(Some(X))
         }
-
-        self.history
-            .last()
-            .map(|(marker, _pos)| marker.opponent())
-            .or(Some(X))
     }
 
     pub fn status(&self) -> Status {
         let board = self.board();
 
-        let win = POSSIBLE_WINS
+        POSSIBLE_WINS
             .iter()
             .filter_map(|&possibility| {
                 let [a, b, c] = possibility.map(|(col, row)| board[col][row]);
@@ -139,9 +142,8 @@ impl GameState {
                     None
                 }
             })
-            .nth(0);
-
-        win.unwrap_or_else(|| if self.is_full() { Draw } else { InProgress })
+            .nth(0)
+            .unwrap_or_else(|| if self.is_full() { Draw } else { InProgress })
     }
 
     fn is_full(&self) -> bool {
@@ -162,6 +164,7 @@ impl GameState {
         if self.is_position_taken(&position) {
             return Err(SpaceIsTaken);
         }
+
         match self.whose_turn() {
             Some(current_turn) if current_turn == marker => {
                 self.history.push((marker, position));
