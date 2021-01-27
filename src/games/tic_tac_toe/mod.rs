@@ -60,6 +60,7 @@ pub const POSSIBLE_WINS: [[(Col, Row); 3]; 8] = [
 ];
 
 pub type Position = (Col, Row);
+pub type Board = EnumMap<Col, EnumMap<Row, Option<Marker>>>;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Status {
@@ -71,12 +72,10 @@ pub enum Status {
     },
 }
 
-use Status::*;
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GameState {
     history: Vec<(Marker, Position)>,
-    board: EnumMap<Col, EnumMap<Row, Option<Marker>>>,
+    board: Board,
 }
 
 impl GameState {
@@ -87,24 +86,14 @@ impl GameState {
         }
     }
 
-    pub fn board(&self) -> [[Option<Marker>; 3]; 3] {
-        [
-            [
-                self.board[Col0][Row0],
-                self.board[Col0][Row1],
-                self.board[Col0][Row2],
-            ],
-            [
-                self.board[Col1][Row0],
-                self.board[Col1][Row1],
-                self.board[Col1][Row2],
-            ],
-            [
-                self.board[Col2][Row0],
-                self.board[Col2][Row1],
-                self.board[Col2][Row2],
-            ],
-        ]
+    pub fn board(&self) -> Board {
+        let mut board = enum_map! { _ => enum_map! { _ => None }};
+
+        for &(marker, (col, row)) in &self.history {
+            board[col][row] = Some(marker);
+        }
+
+        board
     }
 
     pub fn at_position(&self, (col, row): Position) -> Option<Marker> {
@@ -144,7 +133,7 @@ impl GameState {
             .filter_map(|&possibility| {
                 let [a, b, c] = possibility.map(|position| self.at_position(position));
                 if a == b && b == c {
-                    a.map(|marker| Win {
+                    a.map(|marker| Status::Win {
                         marker,
                         spaces: possibility,
                     })
@@ -163,9 +152,9 @@ impl GameState {
             Some(win) => win,
             None => {
                 if self.is_full() {
-                    Draw
+                    Status::Draw
                 } else {
-                    InProgress
+                    Status::InProgress
                 }
             }
         }

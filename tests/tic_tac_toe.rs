@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate enum_map;
+
 use lib_table_top::games::tic_tac_toe::{
     Col::*, Error::*, GameState, Marker::*, Position, Row::*, Status, POSSIBLE_WINS,
 };
@@ -26,18 +29,22 @@ fn test_you_cant_go_twice_in_a_row() {
 #[test]
 fn test_you_can_get_the_board() {
     let mut game = GameState::new();
-    assert_eq!(game.board(), [[None; 3]; 3]);
+    assert_eq!(game.board(), enum_map! { _ => enum_map! { _ => None } });
     let _ = game.make_move(X, (Col1, Row1));
     assert_eq!(
         game.board(),
-        [
-            [None, None, None],
-            [None, Some(X), None],
-            [None, None, None]
-        ]
+        enum_map! {
+            Col1 => enum_map! {
+                Row1 => Some(X),
+                _ => None
+            },
+            _ => enum_map! {
+                _ => None
+            }
+        }
     );
     let _ = game.make_move(O, (Col1, Row0));
-    assert_eq!(game.board()[1][0], Some(O));
+    assert_eq!(game.board()[Col1][Row0], Some(O));
 }
 
 #[test]
