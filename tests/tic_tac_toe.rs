@@ -1,9 +1,45 @@
 #[macro_use]
 extern crate enum_map;
+#[macro_use]
+extern crate itertools;
 
 use lib_table_top::games::tic_tac_toe::{
-    Col::*, Error::*, GameState, Marker::*, Position, Row::*, Status, POSSIBLE_WINS,
+    Col, Col::*, Error::*, GameState, Marker::*, Position, Row, Row::*, Status, POSSIBLE_WINS,
 };
+
+#[test]
+fn test_new() {
+    let game_state = GameState::new();
+
+    for &col in &Col::ALL {
+        for &row in &Row::ALL {
+            assert_eq!(game_state.board()[col][row], None);
+        }
+    }
+
+    let expected: Vec<(Col, Row)> = iproduct!(&Col::ALL, &Row::ALL)
+        .map(|(&col, &row)| (col, row))
+        .collect();
+
+    assert_eq!(game_state.available(), expected)
+}
+
+#[test]
+fn test_make_move() {
+    let mut game_state = GameState::new();
+    assert_eq!(game_state.whose_turn(), Some(X));
+    assert_eq!(game_state.make_move(X, (Col1, Row1)), Ok(()));
+
+    assert_eq!(game_state.whose_turn(), Some(O));
+
+    assert_eq!(game_state.make_move(O, (Col1, Row1)), Err(SpaceIsTaken));
+    assert_eq!(
+        game_state.make_move(X, (Col1, Row2)),
+        Err(OtherPlayerTurn { attempted: X })
+    );
+
+    assert_eq!(game_state.make_move(O, (Col2, Row2)), Ok(()));
+}
 
 #[test]
 fn test_you_cant_go_to_the_same_square_twice() {

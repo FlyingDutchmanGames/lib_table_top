@@ -36,7 +36,7 @@ pub enum Row {
 }
 
 impl Row {
-    const ALL: [Self; 3] = [Row0, Row1, Row2];
+    pub const ALL: [Self; 3] = [Row0, Row1, Row2];
 }
 
 use Row::*;
@@ -49,7 +49,7 @@ pub enum Col {
 }
 
 impl Col {
-    const ALL: [Self; 3] = [Col0, Col1, Col2];
+    pub const ALL: [Self; 3] = [Col0, Col1, Col2];
 }
 
 use Col::*;
@@ -83,9 +83,9 @@ pub enum Status {
 
 use Status::*;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct GameState {
-    history: Vec<(Marker, Position)>,
+    pub history: Vec<(Marker, Position)>,
 }
 
 impl GameState {
@@ -105,11 +105,8 @@ impl GameState {
         board
     }
 
-    pub fn at_position(&self, position: Position) -> Option<Marker> {
-        self.history
-            .iter()
-            .find(|&(_marker, pos)| *pos == position)
-            .map(|(marker, _)| *marker)
+    fn is_full(&self) -> bool {
+        self.history.len() == 9
     }
 
     pub fn available(&self) -> Vec<Position> {
@@ -152,9 +149,17 @@ impl GameState {
 
         win.unwrap_or_else(|| if self.is_full() { Draw } else { InProgress })
     }
+}
+
+impl GameState {
+    pub fn undo(&mut self) -> Option<(Marker, Position)> {
+        self.history.pop()
+    }
 
     pub fn make_move(&mut self, marker: Marker, (col, row): Position) -> Result<(), Error> {
-        if self.at_position((col, row)).is_some() {
+        let board = self.board();
+
+        if board[col][row].is_some() {
             return Err(SpaceIsTaken);
         }
         match self.whose_turn() {
@@ -164,48 +169,5 @@ impl GameState {
             }
             _ => Err(OtherPlayerTurn { attempted: marker }),
         }
-    }
-
-    fn is_full(&self) -> bool {
-        iproduct!(&Col::ALL, &Row::ALL).all(|(&col, &row)| self.at_position((col, row)).is_some())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_new() {
-        let game_state = GameState::new();
-
-        for &col in &Col::ALL {
-            for &row in &Row::ALL {
-                assert_eq!(game_state.board()[col][row], None);
-            }
-        }
-
-        let expected: Vec<(Col, Row)> = iproduct!(&Col::ALL, &Row::ALL)
-            .map(|(&col, &row)| (col, row))
-            .collect();
-
-        assert_eq!(game_state.available(), expected)
-    }
-
-    #[test]
-    fn test_make_move() {
-        let mut game_state = GameState::new();
-        assert_eq!(game_state.whose_turn(), Some(X));
-        assert_eq!(game_state.make_move(X, (Col1, Row1)), Ok(()));
-
-        assert_eq!(game_state.whose_turn(), Some(O));
-
-        assert_eq!(game_state.make_move(O, (Col1, Row1)), Err(SpaceIsTaken));
-        assert_eq!(
-            game_state.make_move(X, (Col1, Row2)),
-            Err(OtherPlayerTurn { attempted: X })
-        );
-
-        assert_eq!(game_state.make_move(O, (Col2, Row2)), Ok(()));
     }
 }
