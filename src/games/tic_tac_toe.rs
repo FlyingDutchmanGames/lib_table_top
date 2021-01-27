@@ -77,7 +77,7 @@ pub enum Status {
     Draw,
     Win {
         marker: Marker,
-        spaces: [(Col, Row); 3],
+        positions: [Position; 3],
     },
 }
 
@@ -98,12 +98,9 @@ impl GameState {
     pub fn board(&self) -> Board {
         let mut board = enum_map! { _ => enum_map! { _ => None }};
 
-        self
-            .history
-            .iter()
-            .for_each(|&(marker, (col, row))| {
-                board[col][row] = Some(marker);
-            });
+        self.history.iter().for_each(|&(marker, (col, row))| {
+            board[col][row] = Some(marker);
+        });
 
         board
     }
@@ -131,13 +128,11 @@ impl GameState {
 
         POSSIBLE_WINS
             .iter()
-            .filter_map(|&possibility| {
-                let [a, b, c] = possibility.map(|(col, row)| board[col][row]);
+            .filter_map(|&positions| {
+                let [a, b, c] = positions.map(|(col, row)| board[col][row]);
+
                 if a == b && b == c {
-                    a.map(|marker| Status::Win {
-                        marker,
-                        spaces: possibility,
-                    })
+                    a.map(|marker| Win { marker, positions })
                 } else {
                     None
                 }

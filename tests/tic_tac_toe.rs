@@ -162,7 +162,7 @@ fn test_you_can_play_and_win() {
         game.status(),
         Status::Win {
             marker: X,
-            spaces: [(Col0, Row0), (Col0, Row1), (Col0, Row2)]
+            positions: [(Col0, Row0), (Col0, Row1), (Col0, Row2)]
         }
     );
 }
@@ -195,7 +195,7 @@ fn test_try_all_the_potential_wins() {
             game.status(),
             Status::Win {
                 marker: X,
-                spaces: win
+                positions: win
             }
         );
     }
