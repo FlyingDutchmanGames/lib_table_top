@@ -7,6 +7,15 @@ pub enum Marker {
     O,
 }
 
+impl Marker {
+    fn opponent(&self) -> Self {
+        match self {
+            X => O,
+            O => X,
+        }
+    }
+}
+
 use Marker::*;
 
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -72,6 +81,8 @@ pub enum Status {
     },
 }
 
+use Status::*;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GameState {
     history: Vec<(Marker, Position)>,
@@ -115,20 +126,19 @@ impl GameState {
             return None;
         }
 
-        match &self.history.last() {
-            None => Some(X),
-            some => some.map(|(marker, _position)| match marker {
-                X => O,
-                O => X,
-            }),
-        }
+        self.history
+            .last()
+            .map(|(marker, _pos)| marker.opponent())
+            .or(Some(X))
     }
 
     pub fn status(&self) -> Status {
+        let board = self.board();
+
         let win = POSSIBLE_WINS
             .iter()
             .filter_map(|&possibility| {
-                let [a, b, c] = possibility.map(|position| self.at_position(position));
+                let [a, b, c] = possibility.map(|(col, row)| board[col][row]);
                 if a == b && b == c {
                     a.map(|marker| Status::Win {
                         marker,
@@ -140,21 +150,7 @@ impl GameState {
             })
             .nth(0);
 
-        if let Some(win) = win {
-            return win;
-        } else {
-        }
-
-        match win {
-            Some(win) => win,
-            None => {
-                if self.is_full() {
-                    Status::Draw
-                } else {
-                    Status::InProgress
-                }
-            }
-        }
+        win.unwrap_or_else(|| if self.is_full() { Draw } else { InProgress })
     }
 
     pub fn make_move(&mut self, marker: Marker, (col, row): Position) -> Result<(), Error> {
