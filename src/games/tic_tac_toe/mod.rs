@@ -77,6 +77,7 @@ use Status::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GameState {
+    history: Vec<(Marker, Position)>,
     board: EnumMap<Col, EnumMap<Row, Option<Marker>>>,
 }
 
@@ -131,6 +132,7 @@ impl fmt::Display for GameState {
 impl GameState {
     pub fn new() -> Self {
         GameState {
+            history: Vec::with_capacity(9),
             board: enum_map! { _ => enum_map! { _ => None } },
         }
     }
@@ -225,6 +227,7 @@ impl GameState {
         }
         match self.whose_turn() {
             Some(current_turn) if current_turn == marker => {
+                self.history.push((marker, (col, row)));
                 self.board[col][row] = Some(marker);
                 Ok(())
             }
