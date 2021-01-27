@@ -106,11 +106,9 @@ impl GameState {
     }
 
     pub fn available(&self) -> Vec<Position> {
-        let board = self.board();
-
         iproduct!(&Col::ALL, &Row::ALL)
-            .filter(|&(&col, &row)| board[col][row].is_none())
             .map(|(&col, &row)| (col, row))
+            .filter(|position| !self.is_position_taken(position))
             .collect()
     }
 
@@ -149,6 +147,10 @@ impl GameState {
     fn is_full(&self) -> bool {
         self.history.len() == 9
     }
+
+    fn is_position_taken(&self, position: &Position) -> bool {
+        self.history.iter().any(|(_marker, pos)| pos == position)
+    }
 }
 
 impl GameState {
@@ -156,15 +158,13 @@ impl GameState {
         self.history.pop()
     }
 
-    pub fn make_move(&mut self, marker: Marker, (col, row): Position) -> Result<(), Error> {
-        let board = self.board();
-
-        if board[col][row].is_some() {
+    pub fn make_move(&mut self, marker: Marker, position: Position) -> Result<(), Error> {
+        if self.is_position_taken(&position) {
             return Err(SpaceIsTaken);
         }
         match self.whose_turn() {
             Some(current_turn) if current_turn == marker => {
-                self.history.push((marker, (col, row)));
+                self.history.push((marker, position));
                 Ok(())
             }
             _ => Err(OtherPlayerTurn { attempted: marker }),
