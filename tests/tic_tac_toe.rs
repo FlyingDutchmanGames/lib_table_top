@@ -4,7 +4,8 @@ extern crate enum_map;
 extern crate itertools;
 
 use lib_table_top::games::tic_tac_toe::{
-    Col, Col::*, Error::*, GameState, Marker::*, Position, Row, Row::*, Status, POSSIBLE_WINS,
+    Col, Col::*, Error::*, GameState, Marker, Marker::*, Position, Row, Row::*, Status,
+    POSSIBLE_WINS,
 };
 
 #[test]
@@ -28,7 +29,7 @@ fn test_new() {
         .map(|(&col, &row)| (col, row))
         .collect();
 
-    assert_eq!(game_state.available(), expected)
+    assert_eq!(game_state.available().collect::<Vec<Position>>(), expected)
 }
 
 #[test]
@@ -36,7 +37,10 @@ fn test_make_move() {
     let mut game_state = GameState::new();
     assert_eq!(game_state.whose_turn(), Some(X));
     assert_eq!(game_state.make_move(X, (Col1, Row1)), Ok(()));
-    assert_eq!(game_state.history, vec![(X, (Col1, Row1))]);
+    assert_eq!(
+        game_state.history().collect::<Vec<&(Marker, Position)>>(),
+        vec![&(X, (Col1, Row1))]
+    );
 
     assert_eq!(game_state.whose_turn(), Some(O));
 
@@ -48,8 +52,8 @@ fn test_make_move() {
 
     assert_eq!(game_state.make_move(O, (Col2, Row2)), Ok(()));
     assert_eq!(
-        game_state.history,
-        vec![(X, (Col1, Row1)), (O, (Col2, Row2))]
+        game_state.history().collect::<Vec<&(Marker, Position)>>(),
+        vec![&(X, (Col1, Row1)), &(O, (Col2, Row2))]
     );
 }
 
@@ -58,14 +62,21 @@ fn test_undoing_moves() {
     let mut game_state = GameState::new();
     assert_eq!(game_state.whose_turn(), Some(X));
     assert_eq!(game_state.make_move(X, (Col1, Row1)), Ok(()));
-    assert_eq!(game_state.history, vec![(X, (Col1, Row1))]);
+    assert_eq!(
+        game_state.history().collect::<Vec<&(Marker, Position)>>(),
+        vec![&(X, (Col1, Row1))]
+    );
 
     assert_eq!(game_state.whose_turn(), Some(O));
 
     // undo a made move
     assert_eq!(game_state.undo(), Some((X, (Col1, Row1))));
     assert_eq!(game_state.whose_turn(), Some(X));
-    assert_eq!(game_state.history, vec![]);
+    let expected: Vec<&(Marker, Position)> = vec![];
+    assert_eq!(
+        game_state.history().collect::<Vec<&(Marker, Position)>>(),
+        expected
+    );
 
     // undoing an empty board yields None
     assert_eq!(game_state.undo(), None);
@@ -173,7 +184,6 @@ fn test_try_all_the_potential_wins() {
         let mut game = GameState::new();
         let loss: Vec<Position> = game
             .available()
-            .iter()
             .filter(|position| !win.contains(position))
             .take(2)
             .map(|position| position.to_owned())

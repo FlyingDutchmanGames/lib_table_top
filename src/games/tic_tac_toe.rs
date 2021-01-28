@@ -85,7 +85,7 @@ use Status::*;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct GameState {
-    pub history: Vec<(Marker, Position)>,
+    history: Vec<(Marker, Position)>,
 }
 
 impl GameState {
@@ -93,6 +93,10 @@ impl GameState {
         GameState {
             history: Vec::with_capacity(9),
         }
+    }
+
+    pub fn history(&self) -> impl Iterator<Item = &(Marker, (Col, Row))> {
+        self.history.iter()
     }
 
     pub fn board(&self) -> Board {
@@ -105,11 +109,10 @@ impl GameState {
         board
     }
 
-    pub fn available(&self) -> Vec<Position> {
+    pub fn available(&self) -> impl Iterator<Item = Position> + '_ {
         iproduct!(&Col::ALL, &Row::ALL)
             .map(|(&col, &row)| (col, row))
-            .filter(|position| !self.is_position_taken(position))
-            .collect()
+            .filter(move |&position| !self.is_position_taken(&position))
     }
 
     pub fn whose_turn(&self) -> Option<Marker> {
@@ -137,7 +140,7 @@ impl GameState {
                     None
                 }
             })
-            .nth(0)
+            .next()
             .unwrap_or_else(|| if self.is_full() { Draw } else { InProgress })
     }
 
