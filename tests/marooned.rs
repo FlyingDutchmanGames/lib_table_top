@@ -42,10 +42,33 @@ fn test_making_a_few_moves() {
 fn test_undoing() {
     let mut game = GameState::new(Default::default());
     let original = game.clone();
-    let next_move = game.valid_next_move().unwrap();
+    let next_move = game.valid_next_action().unwrap();
 
     assert_eq!(game.make_move(next_move), Ok(()));
     assert!(original != game);
     assert_eq!(game.undo(), Some(next_move));
     assert!(original == game);
+}
+
+#[test]
+fn test_a_full_game() {
+    let mut game = GameState::new(Default::default());
+
+    loop {
+        match game.status() {
+            InProgress => {
+                let action = game.valid_next_action().unwrap();
+                assert!(game.make_move(action).is_ok());
+            }
+            Win { player } => {
+                assert_eq!(player, game.whose_turn().opponent());
+                assert_eq!(
+                    game.allowed_movement_targets_for_player(game.whose_turn())
+                        .collect::<Vec<Position>>(),
+                    vec![]
+                );
+                break;
+            }
+        }
+    }
 }

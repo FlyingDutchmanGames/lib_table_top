@@ -17,7 +17,7 @@ pub enum Player {
 use Player::*;
 
 impl Player {
-    fn opponent(&self) -> Self {
+    pub fn opponent(&self) -> Self {
         match self {
             P1 => P2,
             P2 => P1,
@@ -27,8 +27,8 @@ impl Player {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Dimensions {
-    rows: u8,
-    cols: u8,
+    pub rows: u8,
+    pub cols: u8,
 }
 
 impl Dimensions {
@@ -41,8 +41,8 @@ impl Dimensions {
         (Col(col), Row(row)): Position,
     ) -> impl Iterator<Item = Position> + '_ {
         iproduct!(
-            Self::checked_adjacent(col, self.cols),
-            Self::checked_adjacent(row, self.rows)
+            Self::checked_adjacent(col, self.cols - 1),
+            Self::checked_adjacent(row, self.rows - 1)
         )
         .filter(move |&(c, r)| (c, r) != (col, row))
         .map(|(c, r)| (Col(c), Row(r)))
@@ -182,7 +182,7 @@ impl GameState {
             })
     }
 
-    pub fn valid_next_move(&self) -> Option<Action> {
+    pub fn valid_next_action(&self) -> Option<Action> {
         match self.status() {
             Win { .. } => None,
             InProgress => {
@@ -262,6 +262,46 @@ impl GameState {
 
     pub fn undo(&mut self) -> Option<Action> {
         self.history.pop()
+    }
+}
+
+impl GameState {
+    pub fn debug_repr(&self) -> String {
+        let mut debug_string: String = format!("- Who's Turn: {:?}\n\n", self.whose_turn());
+
+        let rows = 0..(self.settings.dimensions.rows - 1);
+        let cols = 0..(self.settings.dimensions.cols - 1);
+
+        debug_string.push_str("   ");
+        for col in cols.clone() {
+            debug_string.push_str(" ");
+            debug_string.push_str(&col.to_string());
+            debug_string.push_str(" ");
+        }
+        debug_string.push_str("\n");
+
+        for row in rows {
+            debug_string.push_str(&row.to_string());
+            debug_string.push_str(" |");
+            for col in cols.clone() {
+                let position = (Col(col), Row(row));
+                let marker = if self.player_position(P1) == position {
+                    "1"
+                } else if self.player_position(P2) == position {
+                    "2"
+                } else if self.removed_positions().any(|pos| pos == position) {
+                    "X"
+                } else {
+                    "*"
+                };
+                debug_string.push_str(" ");
+                debug_string.push_str(marker);
+                debug_string.push_str(" ");
+            }
+            debug_string.push_str("\n");
+        }
+
+        debug_string
     }
 }
 
