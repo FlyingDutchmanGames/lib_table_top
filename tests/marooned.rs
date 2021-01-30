@@ -37,3 +37,15 @@ fn test_making_a_few_moves() {
     assert_eq!(game.whose_turn(), P2);
     assert_eq!(game.removed_positions().next(), Some(position_to_remove));
 }
+
+#[test]
+fn test_undoing() {
+    let mut game = GameState::new(Default::default());
+    let original = game.clone();
+    let next_move = game.valid_next_move().unwrap();
+
+    assert_eq!(game.make_move(next_move), Ok(()));
+    assert!(original != game);
+    assert_eq!(game.undo(), Some(next_move));
+    assert!(original == game);
+}

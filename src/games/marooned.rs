@@ -182,6 +182,22 @@ impl GameState {
             })
     }
 
+    pub fn valid_next_move(&self) -> Option<Action> {
+        match self.status() {
+            Win { .. } => None,
+            InProgress => {
+                let player = self.whose_turn();
+                let move_to = self.allowed_movement_targets_for_player(player).next();
+                let remove = self.removable_positions().next();
+
+                match (move_to, remove) {
+                    (Some(to), Some(remove)) => Some(Action { player, to, remove }),
+                    _ => None,
+                }
+            }
+        }
+    }
+
     fn player_positions(&self) -> EnumMap<Player, Position> {
         enum_map! {
             P1 => self.player_position(P1),
