@@ -1,5 +1,6 @@
 use lib_table_top::games::marooned::{
-    Action, Col, Dimensions, GameState, Player::*, Position, Row, SettingsError::*, Status::*,
+    Action, Col, Dimensions, GameState, Player::*, Position, Row, SettingsBuilder,
+    SettingsError::*, Status::*,
 };
 
 #[test]
@@ -103,7 +104,7 @@ fn test_undoing() {
 
 #[test]
 fn test_a_full_game() {
-    let mut game = GameState::new(Default::default());
+    let mut game = SettingsBuilder::new().rows(3).cols(3).build_game().unwrap();
 
     loop {
         match game.status() {

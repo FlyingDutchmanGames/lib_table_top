@@ -285,18 +285,22 @@ impl GameState {
     }
 
     pub fn removable_positions(&self) -> impl Iterator<Item = Position> + '_ {
+        self.removable_positions_for_player(self.whose_turn())
+    }
+
+    pub fn removable_positions_for_player(
+        &self,
+        player: Player,
+    ) -> impl Iterator<Item = Position> + '_ {
         self.settings
             .dimensions
             .all_positions()
-            .filter(move |&pos| self.is_position_allowed_to_be_removed(pos))
+            .filter(move |&pos| self.is_position_allowed_to_be_removed(pos, player))
     }
 
-    pub fn is_position_allowed_to_be_removed(&self, position: Position) -> bool {
+    pub fn is_position_allowed_to_be_removed(&self, position: Position, player: Player) -> bool {
         (!self.removed_positions().any(|p| p == position))
-            && !self
-                .player_positions()
-                .iter()
-                .any(|(_player, pos)| *pos == position)
+            && !(self.player_position(player.opponent()) == position)
     }
 
     pub fn allowed_movement_targets_for_player(
@@ -391,7 +395,7 @@ impl GameState {
             });
         }
 
-        if !self.is_position_allowed_to_be_removed(action.remove) {
+        if !self.is_position_allowed_to_be_removed(action.remove, action.player) {
             return Err(InvalidRemove {
                 target: action.remove,
             });
@@ -411,13 +415,17 @@ impl GameState {
         let rows = 0..self.settings.dimensions.rows;
         let cols = 0..self.settings.dimensions.cols;
 
-        debug_string.push_str("   ");
+        let mut column_labels = String::new();
+
+        column_labels.push_str("   ");
         for col in cols.clone() {
-            debug_string.push_str(&format!(" {} ", col));
+            column_labels.push_str(&format!(" {} ", col));
         }
+
+        debug_string.push_str(&column_labels);
         debug_string.push_str("\n");
 
-        for row in rows {
+        for row in rows.rev() {
             debug_string.push_str(&format!("{} |", row));
             for col in cols.clone() {
                 let position = (Col(col), Row(row));
@@ -426,15 +434,17 @@ impl GameState {
                 } else if self.player_position(P2) == position {
                     "2"
                 } else if self.removed_positions().any(|pos| pos == position) {
-                    "X"
+                    " "
                 } else {
                     "*"
                 };
                 debug_string.push_str(&format!(" {} ", marker));
             }
+            debug_string.push_str(&format!("| {}", row));
             debug_string.push_str("\n");
         }
 
+        debug_string.push_str(&column_labels);
         debug_string
     }
 }
