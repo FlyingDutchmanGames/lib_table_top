@@ -116,7 +116,8 @@ pub struct Settings {
 pub struct SettingsBuilder {
     rows: u8,
     cols: u8,
-    starting_player_positions: Option<EnumMap<Player, Position>>,
+    p1_starting: Option<Position>,
+    p2_starting: Option<Position>,
     starting_removed_positions: Vec<Position>,
 }
 
@@ -126,7 +127,8 @@ impl Default for SettingsBuilder {
         Self {
             cols,
             rows,
-            starting_player_positions: Default::default(),
+            p1_starting: None,
+            p2_starting: None,
             starting_removed_positions: Default::default(),
         }
     }
@@ -151,11 +153,13 @@ impl SettingsBuilder {
         self
     }
 
-    pub fn starting_player_positions(
-        mut self,
-        starting_player_positions: EnumMap<Player, Position>,
-    ) -> Self {
-        self.starting_player_positions = Some(starting_player_positions);
+    pub fn p1_starting(mut self, pos: Position) -> Self {
+        self.p1_starting = Some(pos);
+        self
+    }
+
+    pub fn p2_starting(mut self, pos: Position) -> Self {
+        self.p2_starting = Some(pos);
         self
     }
 
@@ -171,9 +175,10 @@ impl SettingsBuilder {
 impl Settings {
     pub fn new(builder: SettingsBuilder) -> Result<Self, SettingsError> {
         let dimensions = Dimensions::new(builder.rows, builder.cols)?;
-        let starting_player_positions = builder
-            .starting_player_positions
-            .unwrap_or_else(|| dimensions.default_player_starting_positions());
+        let default_starting = dimensions.default_player_starting_positions();
+        let p1_starting = builder.p1_starting.unwrap_or(default_starting[P1]);
+        let p2_starting = builder.p2_starting.unwrap_or(default_starting[P2]);
+        let starting_player_positions = enum_map! { P1 => p1_starting, P2 => p2_starting };
 
         for &pos in &builder.starting_removed_positions {
             if !dimensions.is_position_on_board(pos) {
@@ -483,28 +488,26 @@ mod tests {
             })
         );
 
-        assert_eq!(
-            SettingsBuilder::new()
-                .starting_player_positions(
-                    enum_map! { P1 => (Col(0), Row(0)), P2 => (Col(0), Row(1)) }
-                )
-                .starting_removed_positions(vec![(Col(0), Row(0))])
-                .build(),
-            Err(PlayerCantStartOnRemovedSquare {
-                player: P1,
-                position: (Col(0), Row(0))
-            })
-        );
+        let pos = (Col(0), Row(0));
 
         assert_eq!(
             SettingsBuilder::new()
-                .starting_player_positions(
-                    enum_map! { P1 => (Col(100), Row(100)), P2 => (Col(0), Row(0)) }
-                )
+                .p1_starting(pos)
+                .starting_removed_positions(vec![pos])
                 .build(),
+            Err(PlayerCantStartOnRemovedSquare {
+                player: P1,
+                position: pos
+            })
+        );
+
+        let pos = (Col(100), Row(100));
+
+        assert_eq!(
+            SettingsBuilder::new().p1_starting(pos).build(),
             Err(PlayersMustStartOnBoard {
                 player: P1,
-                position: (Col(100), Row(100))
+                position: pos
             })
         );
     }
@@ -541,7 +544,7 @@ mod tests {
     #[test]
     fn test_you_cant_move_into_a_non_adjacent_position() {
         let mut game = SettingsBuilder::new()
-            .starting_player_positions(enum_map! { P1 => (Col(0), Row(0)), P2 => (Col(0), Row(1)) })
+            .p1_starting((Col(0), Row(0)))
             .build_game()
             .unwrap();
 
@@ -588,7 +591,7 @@ mod tests {
         let game = SettingsBuilder::new()
             .rows(rows)
             .cols(cols)
-            .starting_player_positions(enum_map! { P1 => p1_starting_pos, P2 => (Col(4), Row(4))})
+            .p1_starting(p1_starting_pos)
             .starting_removed_positions(
                 Dimensions::new(rows, cols)
                     .unwrap()
