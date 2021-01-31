@@ -564,6 +564,37 @@ pub enum ActionError {
 use ActionError::*;
 
 impl GameState {
+    /// Moves the game forward by doing an action, returns an error and doesn't do anything if the
+    /// action isn't valid for some reason.
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::{
+    /// #  Action, GameState, ActionError, Row, Col, Player::*
+    /// # };
+    /// let mut game: GameState = Default::default();
+    /// let valid_action = game.valid_actions().next().unwrap();
+    ///
+    /// // Trying to make a move with the wrong player
+    /// assert_eq!(
+    ///     game.make_move(Action { player: valid_action.player.opponent(), ..valid_action}),
+    ///     Err(ActionError::OtherPlayerTurn { attempted: valid_action.player.opponent() })
+    /// );
+    ///
+    /// // You can't move to a non adjacent/removed/occupied square
+    /// assert_eq!(
+    ///     game.make_move(Action { to: (Col(100), Row(100)), ..valid_action}),
+    ///     Err(ActionError::InvalidMoveToTarget { target: (Col(100), Row(100)), player: P1})
+    /// );
+    ///
+    /// // You can't remove a position that is already removed/off the board/where the other player
+    /// // is standing
+    /// assert_eq!(
+    ///     game.make_move(Action { remove: (Col(100), Row(100)), ..valid_action}),
+    ///     Err(ActionError::InvalidRemove { target: (Col(100), Row(100)) })
+    /// );
+    ///
+    /// // Any valid action advances the game and returns Ok(())
+    /// assert!(game.make_move(valid_action).is_ok());
+    /// ```
     pub fn make_move(&mut self, action: Action) -> Result<(), ActionError> {
         if action.to == action.remove {
             return Err(CantRemoveTheSamePositionAsMoveTo { target: action.to });
