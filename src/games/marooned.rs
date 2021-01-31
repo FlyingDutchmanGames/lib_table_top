@@ -1,22 +1,35 @@
 use enum_map::EnumMap;
 use thiserror::Error;
 
+/// A row value inside of a position (y coordinate)
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Row(pub u8);
+
+/// A col value inside of a position (x coordinate)
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Col(pub u8);
 
+/// A position on the board denoted in column, then row (x, y)
 pub type Position = (Col, Row);
 
+/// Players 1 and 2
 #[derive(Copy, Clone, Debug, Enum, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Player {
+    /// Player One
     P1,
+    /// Player Two
     P2,
 }
 
 use Player::*;
 
 impl Player {
+    /// Return the opponent (opposite) player
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::Player::*;
+    /// assert_eq!(P1.opponent(), P2);
+    /// assert_eq!(P2.opponent(), P1);
+    /// ```
     pub fn opponent(&self) -> Self {
         match self {
             P1 => P2,
@@ -25,22 +38,29 @@ impl Player {
     }
 }
 
+/// The various errors that can be returned from invalid Marooned settings
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum SettingsError {
+    /// When dimensions are invalid, rows * cols must be >= 2
     #[error("Invalid dimensions")]
     InvalidDimensions,
+    /// You can't remove a position that isn't on the board
     #[error("Cant remove the position ({:?}) because it isn't on the board", pos)]
     CantRemovePositionNotOnBoard { pos: Position },
+    /// Two players can't start on the same position
     #[error("Players must start at different positions")]
     PlayersCantStartAtSamePosition,
+    /// A player can't start off the board
     #[error("Players must start on board, but {:?} is on {:?}", player, position)]
     PlayersMustStartOnBoard { player: Player, position: Position },
+    /// A player can't start on a removed square
     #[error("Can't start player {:?} on removed position {:?}", player, position)]
     PlayerCantStartOnRemovedSquare { player: Player, position: Position },
 }
 
 use SettingsError::*;
 
+/// Representation of the dimensions of the game board
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Dimensions {
     pub rows: u8,
@@ -48,6 +68,17 @@ pub struct Dimensions {
 }
 
 impl Dimensions {
+    /// Create new Dimensions
+    ///
+    /// No dimension may be equal to 0, and rows * cols must be >= 2
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::{Dimensions, SettingsError};
+    /// assert_eq!(Dimensions::new(3, 4), Ok(Dimensions { rows: 3, cols: 4 }));
+    /// assert_eq!(Dimensions::new(0, 0), Err(SettingsError::InvalidDimensions));
+    /// assert_eq!(Dimensions::new(0, 9), Err(SettingsError::InvalidDimensions));
+    /// assert_eq!(Dimensions::new(9, 0), Err(SettingsError::InvalidDimensions));
+    /// assert_eq!(Dimensions::new(1, 1), Err(SettingsError::InvalidDimensions));
+    /// ```
     pub fn new(rows: u8, cols: u8) -> Result<Self, SettingsError> {
         match (rows, cols) {
             (0, _) => Err(InvalidDimensions),
@@ -57,14 +88,64 @@ impl Dimensions {
         }
     }
 
+    /// An iterator over all of the positions that are on the board, includes
+    /// removed/currently occupied positions
+    /// ```
+    ///
+    /// # use crate::lib_table_top::games::marooned::{Dimensions, Position, Row, Col};
+    /// let dimensions = Dimensions { rows: 2, cols: 2 };
+    /// assert_eq!(
+    ///   dimensions.all_positions().collect::<Vec<Position>>(),
+    ///   vec![(Col(0), Row(0)), (Col(0), Row(1)), (Col(1), Row(0)), (Col(1), Row(1))]
+    /// )
+    /// ```
     pub fn all_positions(&self) -> impl Iterator<Item = Position> {
         iproduct!(0..self.cols, 0..self.rows).map(|(col, row)| (Col(col), Row(row)))
     }
 
-    pub fn is_position_on_board(&self, (Col(col), Row(row)): Position) -> bool {
+    /// Returns whether a position is on the board
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::{Dimensions, Col, Row};
+    /// let dimensions = Dimensions { rows: 2, cols: 2 };
+    /// assert!(dimensions.is_position_on_board((Col(0), Row(0))));
+    /// assert!(dimensions.is_position_on_board((Col(1), Row(1))));
+    /// assert!(!dimensions.is_position_on_board((Col(2), Row(2))));
+    /// ```
+    pub fn is_position_on_board(&self, position: Position) -> bool {
+        let (Col(col), Row(row)) = position;
         row < self.rows && col < self.cols
     }
 
+    /// An iterator over the positions contained within the board that are adjacent to the given
+    /// position, does not include the given position
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::{Dimensions, Row, Col, Position};
+    /// let dimensions = Dimensions { rows: 3, cols: 3 };
+    ///
+    /// assert_eq!(
+    ///     dimensions
+    ///         .adjacenct_positions((Col(0), Row(0)))
+    ///         .collect::<Vec<Position>>(),
+    ///     vec![(Col(1), Row(1)), (Col(1), Row(0)), (Col(0), Row(1))]
+    /// );
+    ///
+    /// assert_eq!(
+    ///     dimensions
+    ///         .adjacenct_positions((Col(1), Row(1)))
+    ///         .collect::<Vec<Position>>(),
+    ///     vec![
+    ///         (Col(2), Row(2)),
+    ///         (Col(2), Row(1)),
+    ///         (Col(2), Row(0)),
+    ///         (Col(1), Row(2)),
+    ///         (Col(1), Row(0)),
+    ///         (Col(0), Row(2)),
+    ///         (Col(0), Row(1)),
+    ///         (Col(0), Row(0))
+    ///     ]
+    /// );
+    ///
+    /// ```
     pub fn adjacenct_positions(
         &self,
         (Col(col), Row(row)): Position,
@@ -112,6 +193,19 @@ pub struct Settings {
     starting_removed_positions: Vec<Position>,
 }
 
+/// Tools to build Marooned games
+/// ```
+/// # use crate::lib_table_top::games::marooned::{Dimensions, SettingsBuilder, Col, Row};
+/// assert!(SettingsBuilder::new()
+///    .rows(3)
+///    .cols(4)
+///    .p1_starting((Col(0), Row(0)))
+///    .p2_starting((Col(1), Row(1)))
+///    .starting_removed_positions(vec![(Col(2), Row(2))])
+///    .build_game()
+///    .is_ok()
+/// )
+/// ```
 #[derive(Clone, Debug)]
 pub struct SettingsBuilder {
     rows: u8,

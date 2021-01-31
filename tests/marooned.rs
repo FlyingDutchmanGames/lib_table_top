@@ -26,30 +26,6 @@ fn test_dimensions() {
             (Col(2), Row(1))
         ]
     );
-
-    assert_eq!(
-        dimensions
-            .adjacenct_positions((Col(0), Row(0)))
-            .collect::<Vec<Position>>(),
-        vec![(Col(1), Row(1)), (Col(1), Row(0)), (Col(0), Row(1))]
-    );
-
-    assert_eq!(
-        Dimensions::new(3, 3)
-            .unwrap()
-            .adjacenct_positions((Col(1), Row(1)))
-            .collect::<Vec<Position>>(),
-        vec![
-            (Col(2), Row(2)),
-            (Col(2), Row(1)),
-            (Col(2), Row(0)),
-            (Col(1), Row(2)),
-            (Col(1), Row(0)),
-            (Col(0), Row(2)),
-            (Col(0), Row(1)),
-            (Col(0), Row(0))
-        ]
-    );
 }
 
 #[test]
