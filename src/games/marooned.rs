@@ -404,6 +404,11 @@ impl GameState {
             .unwrap_or(P1)
     }
 
+    /// An iterator over the game history, starting from the beginning
+    pub fn history(&self) -> impl Iterator<Item = &Action> {
+        self.history.iter()
+    }
+
     /// Returns an iterator of the positions that have already been removed
     /// ```
     /// # use crate::lib_table_top::games::marooned::{
