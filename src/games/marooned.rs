@@ -67,7 +67,7 @@ impl Dimensions {
     }
 
     pub fn all_positions(&self) -> impl Iterator<Item = Position> {
-        iproduct!(0..(self.cols - 1), 0..(self.rows - 1)).map(|(col, row)| (Col(col), Row(row)))
+        iproduct!(0..self.cols, 0..self.rows).map(|(col, row)| (Col(col), Row(row)))
     }
 
     pub fn is_position_on_board(&self, (Col(col), Row(row)): Position) -> bool {
@@ -79,8 +79,8 @@ impl Dimensions {
         (Col(col), Row(row)): Position,
     ) -> impl Iterator<Item = Position> + '_ {
         iproduct!(
-            Self::checked_adjacent(col, self.cols - 1),
-            Self::checked_adjacent(row, self.rows - 1)
+            Self::checked_adjacent(col, self.cols),
+            Self::checked_adjacent(row, self.rows)
         )
         .filter(move |&(c, r)| (c, r) != (col, row))
         .map(|(c, r)| (Col(c), Row(r)))
@@ -406,8 +406,8 @@ impl GameState {
     pub fn debug_repr(&self) -> String {
         let mut debug_string: String = format!("- Who's Turn: {:?}\n\n", self.whose_turn());
 
-        let rows = 0..(self.settings.dimensions.rows - 1);
-        let cols = 0..(self.settings.dimensions.cols - 1);
+        let rows = 0..self.settings.dimensions.rows;
+        let cols = 0..self.settings.dimensions.cols;
 
         debug_string.push_str("   ");
         for col in cols.clone() {

@@ -3,6 +3,55 @@ use lib_table_top::games::marooned::{
 };
 
 #[test]
+fn test_dimensions() {
+    let dimensions: Dimensions = Default::default();
+
+    for &(col, row) in [(0, 100), (100, 0)].iter() {
+        assert!(!dimensions.is_position_on_board((Col(col), Row(row))))
+    }
+    for &(col, row) in [(0, 0), (1, 1), (5, 7)].iter() {
+        assert!(dimensions.is_position_on_board((Col(col), Row(row))))
+    }
+
+    let dimensions = Dimensions::new(2, 3).unwrap();
+    assert_eq!(
+        dimensions.all_positions().collect::<Vec<Position>>(),
+        vec![
+            (Col(0), Row(0)),
+            (Col(0), Row(1)),
+            (Col(1), Row(0)),
+            (Col(1), Row(1)),
+            (Col(2), Row(0)),
+            (Col(2), Row(1))
+        ]
+    );
+
+    assert_eq!(
+        dimensions
+            .adjacenct_positions((Col(0), Row(0)))
+            .collect::<Vec<Position>>(),
+        vec![(Col(1), Row(1)), (Col(1), Row(0)), (Col(0), Row(1))]
+    );
+
+    assert_eq!(
+        Dimensions::new(3, 3)
+            .unwrap()
+            .adjacenct_positions((Col(1), Row(1)))
+            .collect::<Vec<Position>>(),
+        vec![
+            (Col(2), Row(2)),
+            (Col(2), Row(1)),
+            (Col(2), Row(0)),
+            (Col(1), Row(2)),
+            (Col(1), Row(0)),
+            (Col(0), Row(2)),
+            (Col(0), Row(1)),
+            (Col(0), Row(0))
+        ]
+    );
+}
+
+#[test]
 fn test_making_a_few_moves() {
     let mut game = GameState::new(Default::default());
     assert_eq!(game.status(), InProgress);
