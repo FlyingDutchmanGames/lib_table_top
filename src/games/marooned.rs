@@ -194,6 +194,7 @@ pub struct Settings {
 }
 
 /// Tools to build Marooned games
+///
 /// ```
 /// # use crate::lib_table_top::games::marooned::{Dimensions, SettingsBuilder, Col, Row};
 /// assert!(SettingsBuilder::new()
@@ -205,6 +206,13 @@ pub struct Settings {
 ///    .build_game()
 ///    .is_ok()
 /// )
+/// ```
+///
+/// If you're trying to play with the default settings, it's easiest to use the Default
+/// implemenation provided by [`GameState`](struct@GameState)
+/// ```
+/// # use crate::lib_table_top::games::marooned::GameState;
+/// let game: GameState = Default::default();
 /// ```
 #[derive(Clone, Debug)]
 pub struct SettingsBuilder {
@@ -318,6 +326,7 @@ impl Default for Settings {
     }
 }
 
+/// Action that player makes on the game
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Action {
     pub player: Player,
@@ -325,20 +334,18 @@ pub struct Action {
     pub remove: Position,
 }
 
-impl Action {
-    fn new(player: Player, to: Position, remove: Position) -> Self {
-        Self { player, to, remove }
-    }
-}
-
+/// The current status of the game
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Status {
+    /// The game is still in progress
     InProgress,
+    /// The game is over, no more actions can be taken on this game
     Win { player: Player },
 }
 
 use Status::*;
 
+/// The game state
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct GameState {
     pub settings: Settings,
@@ -346,6 +353,8 @@ pub struct GameState {
 }
 
 impl GameState {
+    /// Makes a new game, you're better off using [`SettingsBuilder`](struct@SettingsBuilder) to
+    /// construct a new game
     pub fn new(settings: Settings) -> Self {
         Self {
             settings,
@@ -353,6 +362,19 @@ impl GameState {
         }
     }
 
+    /// Returns the current status of a game
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::{
+    /// #     GameState, Status, SettingsBuilder, Player::*
+    /// # };
+    /// // A new default game is in progress
+    /// let game: GameState = Default::default();
+    /// assert_eq!(game.status(), Status::InProgress);
+    ///
+    /// // A game with no more available spaces to move for the current player is over
+    /// let game = SettingsBuilder::new().rows(1).cols(2).build_game().unwrap();
+    /// assert_eq!(game.status(), Status::Win { player: P2 })
+    /// ```
     pub fn status(&self) -> Status {
         let current_player = self.whose_turn();
 
@@ -369,6 +391,12 @@ impl GameState {
         }
     }
 
+    /// Returns the player who's turn it currently is. All games start with P1
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::{Player, GameState};
+    /// let game: GameState = Default::default();
+    /// assert_eq!(game.whose_turn(), Player::P1);
+    /// ```
     pub fn whose_turn(&self) -> Player {
         self.history
             .last()
@@ -376,6 +404,22 @@ impl GameState {
             .unwrap_or(P1)
     }
 
+    /// Returns an iterator of the positions that have already been removed
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::{
+    /// #   GameState, Position, SettingsBuilder, Row, Col
+    /// # };
+    /// // The default game settings start with no removed positions
+    /// let game: GameState = Default::default();
+    /// let removed: Vec<Position> = game.removed_positions().collect();
+    /// assert_eq!(removed, vec![]);
+    ///
+    /// // You can start with some already removed
+    /// let pos = (Col(1), Row(1));
+    /// let game = SettingsBuilder::new().starting_removed_positions(vec![pos]).build_game().unwrap();
+    /// let removed: Vec<Position> = game.removed_positions().collect();
+    /// assert_eq!(removed, vec![pos]);
+    /// ```
     pub fn removed_positions(&self) -> impl Iterator<Item = Position> + '_ {
         self.settings
             .starting_removed_positions
@@ -423,6 +467,31 @@ impl GameState {
             })
     }
 
+    /// An iterator over all the valid actions the current player can take.
+    /// Doesn't return the actions in any particular order, but will return all the actions that
+    /// could possibly be valid.
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::{Action, SettingsBuilder, Row, Col, Player::*};
+    /// let game = SettingsBuilder::new().rows(2).cols(2).build_game().unwrap();
+    /// let actions: Vec<Action> = game.valid_actions().collect();
+    /// assert_eq!(
+    ///   actions,
+    ///   vec![
+    ///     Action { player: P1, to: (Col(1), Row(1)), remove: (Col(0), Row(0)) },
+    ///     Action { player: P1, to: (Col(1), Row(1)), remove: (Col(1), Row(0)) },
+    ///     Action { player: P1, to: (Col(0), Row(0)), remove: (Col(1), Row(0)) },
+    ///     Action { player: P1, to: (Col(0), Row(0)), remove: (Col(1), Row(1)) }
+    ///   ]
+    /// );
+    /// ```
+    ///
+    /// This can be used to generate a random valid move for an AI
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::{Action, GameState};
+    /// let mut game: GameState = Default::default();
+    /// let action: Action = game.valid_actions().next().unwrap();
+    /// assert!(game.make_move(action).is_ok());
+    /// ```
     pub fn valid_actions(&self) -> impl Iterator<Item = Action> + '_ {
         let player = self.whose_turn();
 
@@ -442,6 +511,13 @@ impl GameState {
         }
     }
 
+    /// Returns the position of a player
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::{SettingsBuilder, Row, Col, Player::*};
+    /// let p1_starting = (Col(3), Row(3));
+    /// let game = SettingsBuilder::new().p1_starting(p1_starting).build_game().unwrap();
+    /// assert_eq!(p1_starting, game.player_position(P1));
+    /// ```
     pub fn player_position(&self, player: Player) -> Position {
         self.history
             .iter()
@@ -453,6 +529,7 @@ impl GameState {
     }
 }
 
+/// The various things that can go wrong with making a move
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ActionError {
     #[error("Not {:?}'s turn", attempted)]
@@ -497,6 +574,23 @@ impl GameState {
         Ok(self.history.push(action))
     }
 
+    /// Allows you to undo the the most recent action, returning the action.
+    /// It returns `None` on new games with no actions yet
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::GameState;
+    /// // New games have no actions to undo
+    /// let mut game: GameState = Default::default();
+    /// assert_eq!(game.undo(), None);
+    ///
+    /// // You can undo the actions you've made
+    /// let next_move = game.valid_actions().next().unwrap();
+    /// let original = game.clone();
+    /// game.make_move(next_move);
+    ///
+    /// assert!(original != game);
+    /// assert_eq!(game.undo(), Some(next_move));
+    /// assert!(original == game);
+    /// ```
     pub fn undo(&mut self) -> Option<Action> {
         self.history.pop()
     }

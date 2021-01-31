@@ -84,18 +84,6 @@ fn test_make_a_new_game_from_settings_builder() {
 }
 
 #[test]
-fn test_undoing() {
-    let mut game: GameState = Default::default();
-    let original = game.clone();
-    let next_move = game.valid_actions().next().unwrap();
-
-    assert_eq!(game.make_move(next_move), Ok(()));
-    assert!(original != game);
-    assert_eq!(game.undo(), Some(next_move));
-    assert!(original == game);
-}
-
-#[test]
 fn test_a_full_game() {
     let mut game = SettingsBuilder::new().rows(3).cols(3).build_game().unwrap();
 
