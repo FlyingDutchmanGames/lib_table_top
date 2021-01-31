@@ -579,4 +579,25 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn test_when_completely_surrounded_the_game_is_over() {
+        let rows = 10;
+        let cols = 10;
+        let p1_starting_pos = (Col(1), Row(1));
+        let game = SettingsBuilder::new()
+            .rows(rows)
+            .cols(cols)
+            .starting_player_positions(enum_map! { P1 => p1_starting_pos, P2 => (Col(4), Row(4))})
+            .starting_removed_positions(
+                Dimensions::new(rows, cols)
+                    .unwrap()
+                    .adjacenct_positions(p1_starting_pos)
+                    .collect(),
+            )
+            .build_game()
+            .unwrap();
+
+        assert_eq!(Win { player: P2 }, game.status());
+    }
 }
