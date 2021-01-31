@@ -1,14 +1,14 @@
 use enum_map::EnumMap;
 use thiserror::Error;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Row(pub u8);
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Col(pub u8);
 
 pub type Position = (Col, Row);
 
-#[derive(Copy, Clone, Debug, Enum, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Enum, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Player {
     P1,
     P2,
@@ -25,6 +25,20 @@ impl Player {
     }
 }
 
+#[derive(Error, Debug, PartialEq, Eq)]
+pub enum SettingsError {
+    #[error("Invalid dimensions")]
+    InvalidDimensions,
+    #[error("Cant remove the position ({:?}) because it isn't on the board", pos)]
+    CantRemovePositionNotOnBoard { pos: Position },
+    #[error("Players must start at different positions")]
+    PlayersCantStartAtSamePosition,
+    #[error("Players must start on board, but {:?} is on {:?}", player, position)]
+    PlayersMustStartOnBoard { player: Player, position: Position },
+}
+
+use SettingsError::*;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Dimensions {
     pub rows: u8,
@@ -32,8 +46,29 @@ pub struct Dimensions {
 }
 
 impl Dimensions {
+    pub fn new(rows: u8, cols: u8) -> Result<Self, SettingsError> {
+        if cols == 0 || rows == 0 || (((rows as u32) * (cols as u32)) < 2) {
+            return Err(InvalidDimensions);
+        } else {
+            Ok(Self { rows, cols })
+        }
+    }
+
+    pub fn default_player_starting_positions(&self) -> EnumMap<Player, Position> {
+        let col_midpoint = ((self.cols - 1) as f64) / 2f64;
+
+        enum_map! {
+            P1 => (Col(col_midpoint.ceil() as u8), Row(0)),
+            P2 => (Col(col_midpoint.floor() as u8), Row(self.rows - 1)),
+        }
+    }
+
     pub fn all_positions(&self) -> impl Iterator<Item = Position> {
         iproduct!(0..(self.cols - 1), 0..(self.rows - 1)).map(|(col, row)| (Col(col), Row(row)))
+    }
+
+    pub fn is_position_on_board(&self, (Col(col), Row(row)): Position) -> bool {
+        row < (self.rows - 1) && col < (self.cols - 1)
     }
 
     pub fn adjacenct_positions(
@@ -72,6 +107,76 @@ pub struct Settings {
     dimensions: Dimensions,
     starting_player_positions: EnumMap<Player, Position>,
     starting_removed_positions: Vec<Position>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct SettingsBuilder {
+    dimensions: Dimensions,
+    starting_player_positions: Option<EnumMap<Player, Position>>,
+    starting_removed_positions: Vec<Position>,
+}
+
+impl SettingsBuilder {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    pub fn rows(mut self, rows: u8) -> Self {
+        self.dimensions.rows = rows;
+        self
+    }
+    pub fn cols(mut self, cols: u8) -> Self {
+        self.dimensions.cols = cols;
+        self
+    }
+
+    pub fn starting_removed_positions(mut self, positions: Vec<Position>) -> Self {
+        self.starting_removed_positions = positions;
+        self
+    }
+
+    pub fn starting_player_positions(
+        mut self,
+        starting_player_positions: EnumMap<Player, Position>,
+    ) -> Self {
+        self.starting_player_positions = Some(starting_player_positions);
+        self
+    }
+}
+
+impl Settings {
+    pub fn new(
+        (rows, cols): (u8, u8),
+        starting_player_positions: EnumMap<Player, Position>,
+        mut starting_removed_positions: Vec<Position>,
+    ) -> Result<Self, SettingsError> {
+        let dimensions = Dimensions::new(rows, cols)?;
+
+        for &pos in &starting_removed_positions {
+            if !dimensions.is_position_on_board(pos) {
+                return Err(CantRemovePositionNotOnBoard { pos });
+            }
+        }
+
+        for (player, position) in starting_player_positions {
+            if !dimensions.is_position_on_board(position) {
+                return Err(PlayersMustStartOnBoard { player, position });
+            }
+        }
+
+        starting_removed_positions.sort();
+        starting_removed_positions.dedup();
+
+        if starting_player_positions[P1] == starting_player_positions[P2] {
+            return Err(PlayersCantStartAtSamePosition);
+        }
+
+        Ok(Settings {
+            dimensions,
+            starting_player_positions,
+            starting_removed_positions,
+        })
+    }
 }
 
 impl Default for Settings {
@@ -308,6 +413,29 @@ impl GameState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_default_dimensions() {
+        let cases = [
+            ((2, 2), [(1, 0), (0, 1)]),
+            ((3, 3), [(1, 0), (1, 2)]),
+            ((4, 4), [(2, 0), (1, 3)]),
+            ((6, 6), [(3, 0), (2, 5)]),
+            ((u8::MAX, u8::MAX), [(127, 0), (127, 254)]),
+        ];
+
+        for &((rows, cols), [(p1_col, p1_row), (p2_col, p2_row)]) in cases.iter() {
+            assert_eq!(
+                Dimensions::new(rows, cols)
+                    .unwrap()
+                    .default_player_starting_positions(),
+                enum_map! {
+                    P1 => (Col(p1_col), Row(p1_row)),
+                    P2 => (Col(p2_col), Row(p2_row))
+                }
+            )
+        }
+    }
 
     #[test]
     fn test_you_cant_remove_and_move_to_the_same_position() {

@@ -1,4 +1,6 @@
-use lib_table_top::games::marooned::{Action, Col, GameState, Player::*, Position, Row, Status::*};
+use lib_table_top::games::marooned::{
+    Action, Col, Dimensions, GameState, Player::*, Position, Row, SettingsError::*, Status::*,
+};
 
 #[test]
 fn test_making_a_few_moves() {
@@ -70,5 +72,12 @@ fn test_a_full_game() {
                 break;
             }
         }
+    }
+}
+
+#[test]
+fn test_settings_handle_invalid_inputs() {
+    for &(rows, cols) in &[(0, 0), (0, 2), (2, 0), (1, 1)] {
+        assert_eq!(Err(InvalidDimensions), Dimensions::new(rows, cols));
     }
 }
