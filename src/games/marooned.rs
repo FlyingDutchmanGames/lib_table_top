@@ -57,15 +57,6 @@ impl Dimensions {
         }
     }
 
-    pub fn default_player_starting_positions(&self) -> EnumMap<Player, Position> {
-        let col_midpoint = ((self.cols - 1) as f64) / 2f64;
-
-        enum_map! {
-            P1 => (Col(col_midpoint.ceil() as u8), Row(0)),
-            P2 => (Col(col_midpoint.floor() as u8), Row(self.rows - 1)),
-        }
-    }
-
     pub fn all_positions(&self) -> impl Iterator<Item = Position> {
         iproduct!(0..self.cols, 0..self.rows).map(|(col, row)| (Col(col), Row(row)))
     }
@@ -84,6 +75,15 @@ impl Dimensions {
         )
         .filter(move |&(c, r)| (c, r) != (col, row))
         .map(|(c, r)| (Col(c), Row(r)))
+    }
+
+    fn default_player_starting_positions(&self) -> EnumMap<Player, Position> {
+        let col_midpoint = ((self.cols - 1) as f64) / 2f64;
+
+        enum_map! {
+            P1 => (Col(col_midpoint.ceil() as u8), Row(0)),
+            P2 => (Col(col_midpoint.floor() as u8), Row(self.rows - 1)),
+        }
     }
 
     fn checked_adjacent(starting_offset: u8, max: u8) -> Vec<u8> {
@@ -107,7 +107,7 @@ impl Default for Dimensions {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Settings {
-    dimensions: Dimensions,
+    pub dimensions: Dimensions,
     starting_player_positions: EnumMap<Player, Position>,
     starting_removed_positions: Vec<Position>,
 }
@@ -231,6 +231,12 @@ pub struct Action {
     pub remove: Position,
 }
 
+impl Action {
+    fn new(player: Player, to: Position, remove: Position) -> Self {
+        Self { player, to, remove }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Status {
     InProgress,
@@ -239,7 +245,7 @@ pub enum Status {
 
 use Status::*;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct GameState {
     pub settings: Settings,
     history: Vec<Action>,
@@ -409,7 +415,7 @@ impl GameState {
 }
 
 impl GameState {
-    pub fn debug_repr(&self) -> String {
+    fn debug_repr(&self) -> String {
         let mut debug_string: String = format!("- Who's Turn: {:?}\n\n", self.whose_turn());
 
         let rows = 0..self.settings.dimensions.rows;

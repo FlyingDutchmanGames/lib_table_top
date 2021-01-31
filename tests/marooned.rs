@@ -91,8 +91,25 @@ fn test_making_a_few_moves() {
 }
 
 #[test]
+fn test_make_a_new_game_from_settings_builder() {
+    let game = SettingsBuilder::new()
+        .rows(10)
+        .cols(9)
+        .p1_starting((Col(0), Row(0)))
+        .p2_starting((Col(1), Row(1)))
+        .starting_removed_positions(vec![(Col(2), Row(2))])
+        .build_game()
+        .unwrap();
+
+    assert_eq!(game.player_position(P1), (Col(0), Row(0)));
+    assert_eq!(game.player_position(P2), (Col(1), Row(1)));
+    assert_eq!(game.settings.dimensions.rows, 10);
+    assert_eq!(game.settings.dimensions.cols, 9);
+}
+
+#[test]
 fn test_undoing() {
-    let mut game = GameState::new(Default::default());
+    let mut game: GameState = Default::default();
     let original = game.clone();
     let next_move = game.valid_next_action().unwrap();
 
@@ -109,6 +126,11 @@ fn test_a_full_game() {
     loop {
         match game.status() {
             InProgress => {
+                assert!(
+                    game.allowed_movement_targets_for_player(game.whose_turn())
+                        .next()
+                        != None
+                );
                 let action = game.valid_next_action().unwrap();
                 assert!(game.make_move(action).is_ok());
             }
