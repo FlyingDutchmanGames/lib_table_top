@@ -329,22 +329,16 @@ impl GameState {
             })
     }
 
-    pub fn valid_next_action(&self) -> Option<Action> {
-        match self.status() {
-            Win { .. } => None,
-            InProgress => {
-                let player = self.whose_turn();
+    pub fn valid_actions(&self) -> impl Iterator<Item = Action> + '_ {
+        let player = self.whose_turn();
 
-                iproduct!(
-                    self.allowed_movement_targets_for_player(player)
-                        .collect::<Vec<Position>>(),
-                    self.removable_positions().collect::<Vec<Position>>()
-                )
-                .filter(|(to, remove)| to != remove)
-                .next()
-                .map(|(to, remove)| Action { player, to, remove })
-            }
-        }
+        iproduct!(
+            self.allowed_movement_targets_for_player(player)
+                .collect::<Vec<Position>>(),
+            self.removable_positions().collect::<Vec<Position>>()
+        )
+        .filter(|(to, remove)| to != remove)
+        .map(move |(to, remove)| Action { player, to, remove })
     }
 
     fn player_positions(&self) -> EnumMap<Player, Position> {
@@ -583,16 +577,15 @@ mod tests {
 
     #[test]
     fn test_you_cant_remove_an_already_removed_position() {
-        let pos = (Col(1), Row(1));
+        let remove = (Col(1), Row(1));
         let mut game = SettingsBuilder::new()
-            .starting_removed_positions(vec![pos])
+            .starting_removed_positions(vec![remove])
             .build_game()
             .unwrap();
 
-        let result = game.make_move(Action {
-            remove: pos,
-            ..game.valid_next_action().unwrap()
-        });
+        let action = game.valid_actions().next().unwrap();
+        let result = game.make_move(Action { remove, ..action });
+
         assert_eq!(
             result,
             Err(InvalidRemove {

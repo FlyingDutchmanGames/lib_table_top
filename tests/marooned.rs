@@ -111,7 +111,7 @@ fn test_make_a_new_game_from_settings_builder() {
 fn test_undoing() {
     let mut game: GameState = Default::default();
     let original = game.clone();
-    let next_move = game.valid_next_action().unwrap();
+    let next_move = game.valid_actions().next().unwrap();
 
     assert_eq!(game.make_move(next_move), Ok(()));
     assert!(original != game);
@@ -131,7 +131,14 @@ fn test_a_full_game() {
                         .next()
                         != None
                 );
-                let action = game.valid_next_action().unwrap();
+
+                // all valid actions are valid!
+                for action in game.valid_actions() {
+                    let mut new_game = game.clone();
+                    assert!(new_game.make_move(action).is_ok());
+                }
+
+                let action = game.valid_actions().next().unwrap();
                 assert!(game.make_move(action).is_ok());
             }
             Win { player } => {
