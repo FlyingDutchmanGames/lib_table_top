@@ -324,13 +324,15 @@ impl GameState {
             Win { .. } => None,
             InProgress => {
                 let player = self.whose_turn();
-                let move_to = self.allowed_movement_targets_for_player(player).next();
-                let remove = self.removable_positions().next();
 
-                match (move_to, remove) {
-                    (Some(to), Some(remove)) => Some(Action { player, to, remove }),
-                    _ => None,
-                }
+                iproduct!(
+                    self.allowed_movement_targets_for_player(player)
+                        .collect::<Vec<Position>>(),
+                    self.removable_positions().collect::<Vec<Position>>()
+                )
+                .filter(|(to, remove)| to != remove)
+                .next()
+                .map(|(to, remove)| Action { player, to, remove })
             }
         }
     }
