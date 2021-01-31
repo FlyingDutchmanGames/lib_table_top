@@ -35,6 +35,8 @@ pub enum SettingsError {
     PlayersCantStartAtSamePosition,
     #[error("Players must start on board, but {:?} is on {:?}", player, position)]
     PlayersMustStartOnBoard { player: Player, position: Position },
+    #[error("Can't start player {:?} on removed position {:?}", player, position)]
+    PlayerCantStartOnRemovedSquare { player: Player, position: Position },
 }
 
 use SettingsError::*;
@@ -160,17 +162,18 @@ impl SettingsBuilder {
     pub fn build(self) -> Result<Settings, SettingsError> {
         Settings::new(self)
     }
+
+    pub fn build_game(self) -> Result<GameState, SettingsError> {
+        self.build().map(|settings| GameState::new(settings))
+    }
 }
 
 impl Settings {
     pub fn new(builder: SettingsBuilder) -> Result<Self, SettingsError> {
-        println!("{:?}", builder);
         let dimensions = Dimensions::new(builder.rows, builder.cols)?;
         let starting_player_positions = builder
             .starting_player_positions
             .unwrap_or_else(|| dimensions.default_player_starting_positions());
-
-        println!("{:?}", starting_player_positions);
 
         for &pos in &builder.starting_removed_positions {
             if !dimensions.is_position_on_board(pos) {
@@ -178,9 +181,12 @@ impl Settings {
             }
         }
         for (player, position) in starting_player_positions {
-            println!("player: {:?} position {:?}", player, position);
             if !dimensions.is_position_on_board(position) {
                 return Err(PlayersMustStartOnBoard { player, position });
+            }
+
+            if builder.starting_removed_positions.contains(&position) {
+                return Err(PlayerCantStartOnRemovedSquare { player, position });
             }
         }
 
@@ -400,15 +406,12 @@ impl GameState {
 
         debug_string.push_str("   ");
         for col in cols.clone() {
-            debug_string.push_str(" ");
-            debug_string.push_str(&col.to_string());
-            debug_string.push_str(" ");
+            debug_string.push_str(&format!(" {} ", col));
         }
         debug_string.push_str("\n");
 
         for row in rows {
-            debug_string.push_str(&row.to_string());
-            debug_string.push_str(" |");
+            debug_string.push_str(&format!("{} |", row));
             for col in cols.clone() {
                 let position = (Col(col), Row(row));
                 let marker = if self.player_position(P1) == position {
@@ -420,9 +423,7 @@ impl GameState {
                 } else {
                     "*"
                 };
-                debug_string.push_str(" ");
-                debug_string.push_str(marker);
-                debug_string.push_str(" ");
+                debug_string.push_str(&format!(" {} ", marker));
             }
             debug_string.push_str("\n");
         }
@@ -485,6 +486,19 @@ mod tests {
         assert_eq!(
             SettingsBuilder::new()
                 .starting_player_positions(
+                    enum_map! { P1 => (Col(0), Row(0)), P2 => (Col(0), Row(1)) }
+                )
+                .starting_removed_positions(vec![(Col(0), Row(0))])
+                .build(),
+            Err(PlayerCantStartOnRemovedSquare {
+                player: P1,
+                position: (Col(0), Row(0))
+            })
+        );
+
+        assert_eq!(
+            SettingsBuilder::new()
+                .starting_player_positions(
                     enum_map! { P1 => (Col(100), Row(100)), P2 => (Col(0), Row(0)) }
                 )
                 .build(),
@@ -522,5 +536,47 @@ mod tests {
             }),
             Err(OtherPlayerTurn { attempted: P2 })
         )
+    }
+
+    #[test]
+    fn test_you_cant_move_into_a_non_adjacent_position() {
+        let mut game = SettingsBuilder::new()
+            .starting_player_positions(enum_map! { P1 => (Col(0), Row(0)), P2 => (Col(0), Row(1)) })
+            .build_game()
+            .unwrap();
+
+        let result = game.make_move(Action {
+            player: game.whose_turn(),
+            to: (Col(3), Row(3)),
+            remove: (Col(1), Row(1)),
+        });
+
+        assert_eq!(
+            result,
+            Err(InvalidMoveToTarget {
+                target: (Col(3), Row(3)),
+                player: P1
+            })
+        );
+    }
+
+    #[test]
+    fn test_you_cant_remove_an_already_removed_position() {
+        let pos = (Col(1), Row(1));
+        let mut game = SettingsBuilder::new()
+            .starting_removed_positions(vec![pos])
+            .build_game()
+            .unwrap();
+
+        let result = game.make_move(Action {
+            remove: pos,
+            ..game.valid_next_action().unwrap()
+        });
+        assert_eq!(
+            result,
+            Err(InvalidRemove {
+                target: (Col(1), Row(1))
+            })
+        );
     }
 }
