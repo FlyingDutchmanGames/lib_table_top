@@ -428,10 +428,21 @@ impl GameState {
             .copied()
     }
 
+    /// Calls `removable_positions_for_player` with the current player
     pub fn removable_positions(&self) -> impl Iterator<Item = Position> + '_ {
         self.removable_positions_for_player(self.whose_turn())
     }
 
+    /// Returns an iterator of removable positions for a player. Players can not remove the space
+    /// their opponent is on, but can remove they space they are currently on
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::{
+    /// #    SettingsBuilder, Row, Col, Player::*, Position
+    /// # };
+    /// let game = SettingsBuilder::new().rows(2).cols(2).build_game().unwrap();
+    /// let removable: Vec<Position> = game.removable_positions_for_player(P1).collect();
+    /// assert_eq!(removable, vec![(Col(0), Row(0)), (Col(1), Row(0)), (Col(1), Row(1))]);
+    /// ```
     pub fn removable_positions_for_player(
         &self,
         player: Player,
@@ -442,6 +453,14 @@ impl GameState {
             .filter(move |&pos| self.is_position_allowed_to_be_removed(pos, player))
     }
 
+    /// Tests whether a position is allowed to be removed by a certain player
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::{GameState, Player::*};
+    /// let game: GameState = Default::default();
+    /// for position in game.removable_positions_for_player(P1) {
+    ///    assert!(game.is_position_allowed_to_be_removed(position, P1));
+    /// }
+    /// ```
     pub fn is_position_allowed_to_be_removed(&self, position: Position, player: Player) -> bool {
         (!self.removed_positions().any(|p| p == position))
             && !(self.player_position(player.opponent()) == position)
