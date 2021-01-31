@@ -47,10 +47,11 @@ pub struct Dimensions {
 
 impl Dimensions {
     pub fn new(rows: u8, cols: u8) -> Result<Self, SettingsError> {
-        if cols == 0 || rows == 0 || (((rows as u32) * (cols as u32)) < 2) {
-            return Err(InvalidDimensions);
-        } else {
-            Ok(Self { rows, cols })
+        match (rows, cols) {
+            (0, _) => Err(InvalidDimensions),
+            (_, 0) => Err(InvalidDimensions),
+            (1, 1) => Err(InvalidDimensions),
+            _ => Ok(Self { rows, cols }),
         }
     }
 
@@ -68,7 +69,7 @@ impl Dimensions {
     }
 
     pub fn is_position_on_board(&self, (Col(col), Row(row)): Position) -> bool {
-        row < (self.rows - 1) && col < (self.cols - 1)
+        row < self.rows && col < self.cols
     }
 
     pub fn adjacenct_positions(
@@ -109,11 +110,24 @@ pub struct Settings {
     starting_removed_positions: Vec<Position>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct SettingsBuilder {
-    dimensions: Dimensions,
+    rows: u8,
+    cols: u8,
     starting_player_positions: Option<EnumMap<Player, Position>>,
     starting_removed_positions: Vec<Position>,
+}
+
+impl Default for SettingsBuilder {
+    fn default() -> Self {
+        let Dimensions { rows, cols } = Default::default();
+        Self {
+            cols,
+            rows,
+            starting_player_positions: Default::default(),
+            starting_removed_positions: Default::default(),
+        }
+    }
 }
 
 impl SettingsBuilder {
@@ -122,11 +136,11 @@ impl SettingsBuilder {
     }
 
     pub fn rows(mut self, rows: u8) -> Self {
-        self.dimensions.rows = rows;
+        self.rows = rows;
         self
     }
     pub fn cols(mut self, cols: u8) -> Self {
-        self.dimensions.cols = cols;
+        self.cols = cols;
         self
     }
 
@@ -142,28 +156,35 @@ impl SettingsBuilder {
         self.starting_player_positions = Some(starting_player_positions);
         self
     }
+
+    pub fn build(self) -> Result<Settings, SettingsError> {
+        Settings::new(self)
+    }
 }
 
 impl Settings {
-    pub fn new(
-        (rows, cols): (u8, u8),
-        starting_player_positions: EnumMap<Player, Position>,
-        mut starting_removed_positions: Vec<Position>,
-    ) -> Result<Self, SettingsError> {
-        let dimensions = Dimensions::new(rows, cols)?;
+    pub fn new(builder: SettingsBuilder) -> Result<Self, SettingsError> {
+        println!("{:?}", builder);
+        let dimensions = Dimensions::new(builder.rows, builder.cols)?;
+        let starting_player_positions = builder
+            .starting_player_positions
+            .unwrap_or_else(|| dimensions.default_player_starting_positions());
 
-        for &pos in &starting_removed_positions {
+        println!("{:?}", starting_player_positions);
+
+        for &pos in &builder.starting_removed_positions {
             if !dimensions.is_position_on_board(pos) {
                 return Err(CantRemovePositionNotOnBoard { pos });
             }
         }
-
         for (player, position) in starting_player_positions {
+            println!("player: {:?} position {:?}", player, position);
             if !dimensions.is_position_on_board(position) {
                 return Err(PlayersMustStartOnBoard { player, position });
             }
         }
 
+        let mut starting_removed_positions = builder.starting_removed_positions;
         starting_removed_positions.sort();
         starting_removed_positions.dedup();
 
@@ -171,7 +192,7 @@ impl Settings {
             return Err(PlayersCantStartAtSamePosition);
         }
 
-        Ok(Settings {
+        Ok(Self {
             dimensions,
             starting_player_positions,
             starting_removed_positions,
@@ -435,6 +456,43 @@ mod tests {
                 }
             )
         }
+    }
+
+    #[test]
+    fn test_settings_builder_does_validation() {
+        assert!(SettingsBuilder::new().build().is_ok());
+
+        for &(rows, cols) in [(0, 10), (10, 0), (0, 0)].iter() {
+            assert_eq!(
+                SettingsBuilder::new().rows(rows).cols(cols).build(),
+                Err(InvalidDimensions)
+            );
+        }
+
+        for &(rows, cols) in [(2, 1), (1, 2), (2, 2)].iter() {
+            assert!(SettingsBuilder::new().rows(rows).cols(cols).build().is_ok());
+        }
+
+        assert_eq!(
+            SettingsBuilder::new()
+                .starting_removed_positions(vec![(Col(100), Row(100))])
+                .build(),
+            Err(CantRemovePositionNotOnBoard {
+                pos: (Col(100), Row(100))
+            })
+        );
+
+        assert_eq!(
+            SettingsBuilder::new()
+                .starting_player_positions(
+                    enum_map! { P1 => (Col(100), Row(100)), P2 => (Col(0), Row(0)) }
+                )
+                .build(),
+            Err(PlayersMustStartOnBoard {
+                player: P1,
+                position: (Col(100), Row(100))
+            })
+        );
     }
 
     #[test]
