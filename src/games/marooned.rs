@@ -462,10 +462,25 @@ impl GameState {
     /// }
     /// ```
     pub fn is_position_allowed_to_be_removed(&self, position: Position, player: Player) -> bool {
-        (!self.removed_positions().any(|p| p == position))
+        (self.settings.dimensions.is_position_on_board(position))
+            && (!self.removed_positions().any(|p| p == position))
             && !(self.player_position(player.opponent()) == position)
     }
 
+    /// An iterator over the allowed movements of a player, this takes into account board
+    /// dimensions, removed positions, the opponent location
+    /// ```
+    /// # use crate::lib_table_top::games::marooned::{GameState, Position, Row, Col};
+    /// let game: GameState = Default::default();
+    /// let movements: Vec<Position> =
+    ///     game
+    ///     .allowed_movement_targets_for_player(game.whose_turn())
+    ///     .collect();
+    ///
+    /// assert_eq!(movements, vec![
+    ///  (Col(3), Row(1)), (Col(3), Row(0)), (Col(2), Row(1)), (Col(1), Row(1)), (Col(1), Row(0))
+    /// ]);
+    /// ```
     pub fn allowed_movement_targets_for_player(
         &self,
         player: Player,
@@ -573,10 +588,16 @@ impl GameState {
     /// let mut game: GameState = Default::default();
     /// let valid_action = game.valid_actions().next().unwrap();
     ///
-    /// // Trying to make a move with the wrong player
+    /// // You can't make a move with the wrong player
     /// assert_eq!(
     ///     game.make_move(Action { player: valid_action.player.opponent(), ..valid_action}),
     ///     Err(ActionError::OtherPlayerTurn { attempted: valid_action.player.opponent() })
+    /// );
+    ///
+    /// // You can't move to and remove the same position
+    /// assert_eq!(
+    ///     game.make_move(Action { to: valid_action.remove, ..valid_action}),
+    ///     Err(ActionError::CantRemoveTheSamePositionAsMoveTo { target: valid_action.remove }),
     /// );
     ///
     /// // You can't move to a non adjacent/removed/occupied square
@@ -811,6 +832,13 @@ mod tests {
                 player: P1
             })
         );
+    }
+
+    #[test]
+    fn test_you_cant_remove_a_position_off_the_board() {
+        let target = (Col(100), Row(100));
+        let game: GameState = Default::default();
+        assert!(!game.is_position_allowed_to_be_removed(target, P1));
     }
 
     #[test]
