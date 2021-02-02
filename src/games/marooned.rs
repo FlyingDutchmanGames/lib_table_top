@@ -99,7 +99,7 @@ impl Dimensions {
     ///   vec![(Col(0), Row(0)), (Col(0), Row(1)), (Col(1), Row(0)), (Col(1), Row(1))]
     /// )
     /// ```
-    pub fn all_positions(&self) -> impl Iterator<Item = Position> {
+    pub fn all_positions(&self) -> impl Iterator<Item = Position> + Clone {
         iproduct!(0..self.cols, 0..self.rows).map(|(col, row)| (Col(col), Row(row)))
     }
 
@@ -149,7 +149,7 @@ impl Dimensions {
     pub fn adjacenct_positions(
         &self,
         (Col(col), Row(row)): Position,
-    ) -> impl Iterator<Item = Position> + '_ {
+    ) -> impl Iterator<Item = Position> + Clone + '_ {
         iproduct!(
             Self::checked_adjacent(col, self.cols),
             Self::checked_adjacent(row, self.rows)
@@ -167,16 +167,16 @@ impl Dimensions {
         }
     }
 
-    fn checked_adjacent(starting_offset: u8, max: u8) -> Vec<u8> {
-        [
+    fn checked_adjacent(starting_offset: u8, max: u8) -> impl Iterator<Item = u8> + Clone {
+        let vals = vec![
             starting_offset.checked_add(1),
             Some(starting_offset),
             starting_offset.checked_sub(1),
-        ]
-        .iter()
-        .filter_map(|offset| *offset)
-        .filter(|&offset| offset < max)
-        .collect()
+        ];
+
+        vals.into_iter()
+            .filter_map(|offset| offset)
+            .filter(move |&offset| offset < max)
     }
 }
 
@@ -405,7 +405,7 @@ impl GameState {
     }
 
     /// An iterator over the game history, starting from the beginning
-    pub fn history(&self) -> impl Iterator<Item = &Action> {
+    pub fn history(&self) -> impl Iterator<Item = &Action> + Clone {
         self.history.iter()
     }
 
@@ -425,7 +425,7 @@ impl GameState {
     /// let removed: Vec<Position> = game.removed_positions().collect();
     /// assert_eq!(removed, vec![pos]);
     /// ```
-    pub fn removed_positions(&self) -> impl Iterator<Item = Position> + '_ {
+    pub fn removed_positions(&self) -> impl Iterator<Item = Position> + Clone + '_ {
         self.settings
             .starting_removed_positions
             .iter()
@@ -434,7 +434,7 @@ impl GameState {
     }
 
     /// Calls `removable_positions_for_player` with the current player
-    pub fn removable_positions(&self) -> impl Iterator<Item = Position> + '_ {
+    pub fn removable_positions(&self) -> impl Iterator<Item = Position> + Clone + '_ {
         self.removable_positions_for_player(self.whose_turn())
     }
 
@@ -451,7 +451,7 @@ impl GameState {
     pub fn removable_positions_for_player(
         &self,
         player: Player,
-    ) -> impl Iterator<Item = Position> + '_ {
+    ) -> impl Iterator<Item = Position> + Clone + '_ {
         self.settings
             .dimensions
             .all_positions()
@@ -489,21 +489,15 @@ impl GameState {
     pub fn allowed_movement_targets_for_player(
         &self,
         player: Player,
-    ) -> impl Iterator<Item = Position> + '_ {
+    ) -> impl Iterator<Item = Position> + Clone + '_ {
         let removed: Vec<Position> = self.removed_positions().collect();
-        let player_positions: Vec<Position> = self
-            .player_positions()
-            .iter()
-            .map(|(_player, position)| position)
-            .copied()
-            .collect();
+        let other_player_position = self.player_position(player.opponent());
 
         self.settings
             .dimensions
             .adjacenct_positions(self.player_position(player))
-            .filter(move |position| {
-                !removed.contains(&position) && !player_positions.contains(&position)
-            })
+            .filter(move |position| !removed.contains(&position))
+            .filter(move |&position| position != other_player_position)
     }
 
     /// An iterator over all the valid actions the current player can take.
@@ -531,13 +525,12 @@ impl GameState {
     /// let action: Action = game.valid_actions().next().unwrap();
     /// assert!(game.make_move(action).is_ok());
     /// ```
-    pub fn valid_actions(&self) -> impl Iterator<Item = Action> + '_ {
+    pub fn valid_actions(&self) -> impl Iterator<Item = Action> + Clone + '_ {
         let player = self.whose_turn();
 
         iproduct!(
-            self.allowed_movement_targets_for_player(player)
-                .collect::<Vec<Position>>(),
-            self.removable_positions().collect::<Vec<Position>>()
+            self.allowed_movement_targets_for_player(player),
+            self.removable_positions()
         )
         .filter(|(to, remove)| to != remove)
         .map(move |(to, remove)| Action { player, to, remove })
