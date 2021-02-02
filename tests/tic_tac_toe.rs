@@ -75,11 +75,6 @@ fn test_undoing_moves() {
         game_state.history().collect::<Vec<&(Marker, Position)>>(),
         expected
     );
-
-    // undoing an empty board yields None
-    assert_eq!(game_state.undo(), None);
-    assert_eq!(game_state.undo(), None);
-    assert_eq!(game_state.undo(), None);
 }
 
 #[test]

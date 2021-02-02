@@ -30,10 +30,10 @@ use Marker::*;
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
     /// Returned when trying to claim an already claimed space
-    #[error("Space ({:?}, {:?}) is taken", attempted.0, attempted.1)]
+    #[error("space ({:?}, {:?}) is taken", attempted.0, attempted.1)]
     SpaceIsTaken { attempted: Position },
     /// Returned when the wrong player tries to take a turn
-    #[error("Not {:?}'s turn", attempted)]
+    #[error("not {:?}'s turn", attempted)]
     OtherPlayerTurn { attempted: Marker },
 }
 
@@ -162,6 +162,26 @@ impl GameState {
         self.history.iter()
     }
 
+    /// Maps Col => Row => Markers for the current state of the game
+    /// ```
+    /// use lib_table_top::games::tic_tac_toe::{GameState, Row, Row::*, Col, Col::*, Marker::*};
+    ///
+    /// let mut game: GameState = Default::default();
+    ///
+    /// // All spaces are empty on a new game
+    /// let board = game.board();
+    ///
+    /// for &col in &Col::ALL {
+    ///   for &row in &Row::ALL {
+    ///     assert_eq!(board[col][row], None);
+    ///   }
+    /// }
+    ///
+    /// // After making moves they're returned in the board
+    /// assert_eq!(game.board()[Col1][Row1], None);
+    /// assert!(game.make_move((X, (Col1, Row1))).is_ok());
+    /// assert_eq!(game.board()[Col1][Row1], Some(X));
+    /// ```
     pub fn board(&self) -> Board {
         let mut board = enum_map! { _ => enum_map! { _ => None }};
 
@@ -280,10 +300,55 @@ impl GameState {
 }
 
 impl GameState {
+    /// Undo the previous action and yield the action. Returns `None` if there is no previous
+    /// action
+    /// ```
+    /// use lib_table_top::games::tic_tac_toe::GameState;
+    ///
+    /// // A new game has no history, so there is nothing to do
+    /// let mut game: GameState = Default::default();
+    /// assert_eq!(game.undo(), None);
+    ///
+    /// // You can undo actions
+    /// let original_game = game.clone();
+    /// assert!(game == original_game);
+    ///
+    /// let action = game.valid_actions().next().unwrap();
+    /// assert!(game.make_move(action).is_ok());
+    /// assert!(game != original_game);
+    ///
+    /// assert_eq!(game.undo(), Some(action));
+    /// assert_eq!(game, original_game);
+    /// ```
     pub fn undo(&mut self) -> Option<Action> {
         self.history.pop()
     }
 
+    /// Apply an action to the game, returns nothing if successful, and returns an error and
+    /// doesn't change the game state if there is an issue with the action
+    /// ```
+    /// use lib_table_top::games::tic_tac_toe::{
+    ///   GameState, Error::*, Marker::*, Row::*, Col::*
+    /// };
+    ///
+    /// let mut game: GameState = Default::default();
+    ///
+    /// // If the wrong player tries to make a move
+    /// let result = game.make_move((game.whose_turn().opponent(), (Col0, Row0)));
+    /// assert_eq!(result, Err(OtherPlayerTurn { attempted: O }));
+    /// assert_eq!(&result.unwrap_err().to_string(), "not O's turn");
+    ///
+    /// // The correct player can make a move
+    /// let pos = (Col0, Row0);
+    /// let result = game.make_move((game.whose_turn(), pos));
+    /// assert!(result.is_ok());
+    ///
+    /// // Trying to make a move on a taken space yields an error
+    /// assert!(!game.available().any(|x| x == pos));
+    /// let result = game.make_move((game.whose_turn(), pos));
+    /// assert_eq!(result, Err(SpaceIsTaken { attempted: pos }));
+    /// assert_eq!(&result.unwrap_err().to_string(), "space (Col0, Row0) is taken");
+    /// ```
     pub fn make_move(&mut self, (marker, position): Action) -> Result<(), Error> {
         if self.is_position_taken(&position) {
             return Err(SpaceIsTaken {
