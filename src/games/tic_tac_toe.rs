@@ -1,8 +1,10 @@
 use enum_map::EnumMap;
+use serde::{Deserialize, Serialize};
+use serde_repr::*;
 use thiserror::Error;
 
 /// Player pieces, X & O
-#[derive(Copy, Clone, Debug, Enum, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Enum, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Marker {
     X,
     O,
@@ -40,11 +42,12 @@ pub enum Error {
 use Error::*;
 
 /// A `Row` of the Tic-Tac-Toe board
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Enum)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Enum, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
 pub enum Row {
-    Row0,
-    Row1,
-    Row2,
+    Row0 = 0,
+    Row1 = 1,
+    Row2 = 2,
 }
 
 /// All the rows of the board
@@ -55,11 +58,12 @@ impl Row {
 use Row::*;
 
 /// A `Col` of the Tic-Tac-Toe board
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Enum)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Enum, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
 pub enum Col {
-    Col0,
-    Col1,
-    Col2,
+    Col0 = 0,
+    Col1 = 1,
+    Col2 = 2,
 }
 
 /// All the cols of the board
@@ -108,7 +112,7 @@ pub enum Status {
 use Status::*;
 
 /// Representation of a Tic-Tac-Toe game
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameState {
     history: Vec<Action>,
 }

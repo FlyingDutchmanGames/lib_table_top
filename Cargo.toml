@@ -9,3 +9,8 @@ colored = "2"
 enum-map = "0.6.4"
 itertools = "0.10.0"
 thiserror = "1.0.23"
+serde = { version = "1.0", features = ["derive"] }
+serde_repr = "0.1"
+
+[dev-dependencies]
+serde_json = "1.0"

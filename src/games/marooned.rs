@@ -1,24 +1,29 @@
 use enum_map::EnumMap;
+use serde::{Deserialize, Serialize};
+use serde_repr::*;
 use thiserror::Error;
 
 /// A row value inside of a position (y coordinate)
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Row(pub u8);
 
 /// A col value inside of a position (x coordinate)
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Col(pub u8);
 
 /// A position on the board denoted in column, then row (x, y)
 pub type Position = (Col, Row);
 
 /// Players 1 and 2
-#[derive(Copy, Clone, Debug, Enum, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Copy, Clone, Debug, Enum, PartialEq, Eq, PartialOrd, Ord, Serialize_repr, Deserialize_repr,
+)]
+#[repr(u8)]
 pub enum Player {
     /// Player One
-    P1,
+    P1 = 1,
     /// Player Two
-    P2,
+    P2 = 2,
 }
 
 use Player::*;
@@ -62,7 +67,7 @@ pub enum SettingsError {
 use SettingsError::*;
 
 /// Representation of the dimensions of the game board
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Dimensions {
     pub rows: u8,
     pub cols: u8,
@@ -191,10 +196,11 @@ impl Default for Dimensions {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Settings {
     pub dimensions: Dimensions,
-    starting_player_positions: EnumMap<Player, Position>,
+    p1_starting: Position,
+    p2_starting: Position,
     starting_removed_positions: Vec<Position>,
 }
 
@@ -287,14 +293,13 @@ impl Settings {
         let default_starting = dimensions.default_player_starting_positions();
         let p1_starting = builder.p1_starting.unwrap_or(default_starting[P1]);
         let p2_starting = builder.p2_starting.unwrap_or(default_starting[P2]);
-        let starting_player_positions = enum_map! { P1 => p1_starting, P2 => p2_starting };
 
         for &pos in &builder.starting_removed_positions {
             if !dimensions.is_position_on_board(pos) {
                 return Err(CantRemovePositionNotOnBoard { pos });
             }
         }
-        for (player, position) in starting_player_positions {
+        for &(player, position) in &[(P1, p1_starting), (P2, p2_starting)] {
             if !dimensions.is_position_on_board(position) {
                 return Err(PlayersMustStartOnBoard { player, position });
             }
@@ -308,13 +313,14 @@ impl Settings {
         starting_removed_positions.sort();
         starting_removed_positions.dedup();
 
-        if starting_player_positions[P1] == starting_player_positions[P2] {
+        if p1_starting == p2_starting {
             return Err(PlayersCantStartAtSamePosition);
         }
 
         Ok(Self {
             dimensions,
-            starting_player_positions,
+            p1_starting,
+            p2_starting,
             starting_removed_positions,
         })
     }
@@ -324,17 +330,15 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             dimensions: Default::default(),
-            starting_player_positions: enum_map! {
-                P1 => (Col(2), Row(0)),
-                P2 => (Col(3), Row(7)),
-            },
+            p1_starting: (Col(2), Row(0)),
+            p2_starting: (Col(3), Row(7)),
             starting_removed_positions: Default::default(),
         }
     }
 }
 
 /// Action that player makes on the game
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Action {
     pub player: Player,
     pub to: Position,
@@ -353,7 +357,7 @@ pub enum Status {
 use Status::*;
 
 /// The game state
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameState {
     pub settings: Settings,
     history: Vec<Action>,
@@ -591,7 +595,10 @@ impl GameState {
             .filter(|Action { player: p, .. }| p == &player)
             .map(|Action { to, .. }| *to)
             .next()
-            .unwrap_or(self.settings.starting_player_positions[player])
+            .unwrap_or_else(|| match player {
+                P1 => self.settings.p1_starting,
+                P2 => self.settings.p2_starting,
+            })
     }
 }
 
