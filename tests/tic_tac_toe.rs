@@ -38,7 +38,11 @@ fn test_make_move() {
 
     assert_eq!(game_state.whose_turn(), O);
 
-    assert_eq!(game_state.make_move((O, (Col1, Row1))), Err(SpaceIsTaken));
+    let pos = (Col1, Row1);
+    assert_eq!(
+        game_state.make_move((O, (Col1, Row1))),
+        Err(SpaceIsTaken { attempted: pos })
+    );
     assert_eq!(
         game_state.make_move((X, (Col1, Row2))),
         Err(OtherPlayerTurn { attempted: X })
@@ -85,7 +89,12 @@ fn test_you_cant_go_to_the_same_square_twice() {
     let result = game.make_move((X, position));
     assert!(result.is_ok());
     let result = game.make_move((O, position));
-    assert_eq!(result, Err(SpaceIsTaken));
+    assert_eq!(
+        result,
+        Err(SpaceIsTaken {
+            attempted: position
+        })
+    );
 }
 
 #[test]

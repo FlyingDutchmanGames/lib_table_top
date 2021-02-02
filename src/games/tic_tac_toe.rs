@@ -30,8 +30,8 @@ use Marker::*;
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
     /// Returned when trying to claim an already claimed space
-    #[error("Space is taken")]
-    SpaceIsTaken,
+    #[error("Space ({:?}, {:?}) is taken", attempted.0, attempted.1)]
+    SpaceIsTaken { attempted: Position },
     /// Returned when the wrong player tries to take a turn
     #[error("Not {:?}'s turn", attempted)]
     OtherPlayerTurn { attempted: Marker },
@@ -286,7 +286,9 @@ impl GameState {
 
     pub fn make_move(&mut self, (marker, position): Action) -> Result<(), Error> {
         if self.is_position_taken(&position) {
-            return Err(SpaceIsTaken);
+            return Err(SpaceIsTaken {
+                attempted: position,
+            });
         }
 
         if marker == self.whose_turn() {
