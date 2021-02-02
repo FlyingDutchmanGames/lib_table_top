@@ -211,7 +211,7 @@ fn test_try_all_the_potential_wins() {
 }
 
 #[test]
-fn serialize_and_deserialize() {
+fn test_serializing_tic_tac_toe() {
     let mut game: GameState = Default::default();
 
     let serialized = serde_json::to_value(&game).unwrap();

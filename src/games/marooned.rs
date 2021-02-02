@@ -1,24 +1,29 @@
 use enum_map::EnumMap;
+use serde::{Deserialize, Serialize};
+use serde_repr::*;
 use thiserror::Error;
 
 /// A row value inside of a position (y coordinate)
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Row(pub u8);
 
 /// A col value inside of a position (x coordinate)
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Col(pub u8);
 
 /// A position on the board denoted in column, then row (x, y)
 pub type Position = (Col, Row);
 
 /// Players 1 and 2
-#[derive(Copy, Clone, Debug, Enum, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Copy, Clone, Debug, Enum, PartialEq, Eq, PartialOrd, Ord, Serialize_repr, Deserialize_repr,
+)]
+#[repr(u8)]
 pub enum Player {
     /// Player One
-    P1,
+    P1 = 1,
     /// Player Two
-    P2,
+    P2 = 2,
 }
 
 use Player::*;
@@ -62,7 +67,7 @@ pub enum SettingsError {
 use SettingsError::*;
 
 /// Representation of the dimensions of the game board
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Dimensions {
     pub rows: u8,
     pub cols: u8,

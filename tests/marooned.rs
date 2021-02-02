@@ -2,6 +2,7 @@ use lib_table_top::games::marooned::{
     Action, Col, Dimensions, GameState, Player::*, Position, Row, SettingsBuilder,
     SettingsError::*, Status::*,
 };
+use serde_json::json;
 
 #[test]
 fn test_dimensions() {
@@ -26,6 +27,15 @@ fn test_dimensions() {
             (Col(2), Row(1))
         ]
     );
+}
+
+#[test]
+fn test_serializing_dimensions() {
+    let dimensions: Dimensions = Default::default();
+    let serialized = serde_json::to_value(&dimensions).unwrap();
+    assert_eq!(serialized, json!({"rows": 8, "cols": 6}));
+    let deserialized: Dimensions = serde_json::from_value(serialized).unwrap();
+    assert_eq!(deserialized, dimensions);
 }
 
 #[test]
