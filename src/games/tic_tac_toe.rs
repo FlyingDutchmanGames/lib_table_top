@@ -134,6 +134,30 @@ impl GameState {
         }
     }
 
+    /// An iterator over the actions that have been taken on the game, starting from the beginning
+    /// of the game
+    /// ```
+    /// use lib_table_top::games::tic_tac_toe::{Action, GameState};
+    ///
+    /// let mut game: GameState = Default::default();
+    ///
+    /// // The history starts empty
+    /// assert!(game.history().count() == 0);
+    ///
+    /// // THe history can be iterated in order
+    /// let action1 = game.valid_actions().next().unwrap();
+    /// assert!(game.make_move(action1).is_ok());
+    /// let action2 = game.valid_actions().next().unwrap();
+    /// assert!(game.make_move(action2).is_ok());
+    /// let action3 = game.valid_actions().next().unwrap();
+    /// assert!(game.make_move(action3).is_ok());
+    ///
+    /// assert_eq!(game.history().count(), 3);
+    /// assert_eq!(
+    ///   game.history().collect::<Vec<&Action>>(),
+    ///   vec![&action1, &action2, &action3]
+    /// )
+    /// ```
     pub fn history(&self) -> impl Iterator<Item = &Action> + Clone {
         self.history.iter()
     }
@@ -148,6 +172,25 @@ impl GameState {
         board
     }
 
+    /// An iterator over the available positions on the board
+    /// ```
+    /// use lib_table_top::games::tic_tac_toe::GameState;
+    ///
+    /// let mut game: GameState = Default::default();
+    /// let board = game.board();
+    ///
+    /// for (col, row) in game.available() {
+    ///   assert_eq!(board[col][row], None);
+    /// }
+    ///
+    /// // Spaces get taken as the game goes on
+    /// assert_eq!(game.available().count(), 9);
+    ///
+    /// let action = game.valid_actions().next().unwrap();
+    /// assert!(game.make_move(action).is_ok());
+    ///
+    /// assert_eq!(game.available().count(), 8);
+    /// ```
     pub fn available(&self) -> impl Iterator<Item = Position> + Clone + '_ {
         iproduct!(&Col::ALL, &Row::ALL)
             .map(|(&col, &row)| (col, row))
@@ -205,7 +248,7 @@ impl GameState {
         self.history.pop()
     }
 
-    pub fn make_move(&mut self, marker: Marker, position: Position) -> Result<(), Error> {
+    pub fn make_move(&mut self, (marker, position): Action) -> Result<(), Error> {
         if self.is_position_taken(&position) {
             return Err(SpaceIsTaken);
         }

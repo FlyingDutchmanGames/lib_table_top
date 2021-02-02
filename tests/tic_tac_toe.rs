@@ -30,7 +30,7 @@ fn test_new() {
 fn test_make_move() {
     let mut game_state = GameState::new();
     assert_eq!(game_state.whose_turn(), X);
-    assert_eq!(game_state.make_move(X, (Col1, Row1)), Ok(()));
+    assert_eq!(game_state.make_move((X, (Col1, Row1))), Ok(()));
     assert_eq!(
         game_state.history().collect::<Vec<&(Marker, Position)>>(),
         vec![&(X, (Col1, Row1))]
@@ -38,13 +38,13 @@ fn test_make_move() {
 
     assert_eq!(game_state.whose_turn(), O);
 
-    assert_eq!(game_state.make_move(O, (Col1, Row1)), Err(SpaceIsTaken));
+    assert_eq!(game_state.make_move((O, (Col1, Row1))), Err(SpaceIsTaken));
     assert_eq!(
-        game_state.make_move(X, (Col1, Row2)),
+        game_state.make_move((X, (Col1, Row2))),
         Err(OtherPlayerTurn { attempted: X })
     );
 
-    assert_eq!(game_state.make_move(O, (Col2, Row2)), Ok(()));
+    assert_eq!(game_state.make_move((O, (Col2, Row2))), Ok(()));
     assert_eq!(
         game_state.history().collect::<Vec<&(Marker, Position)>>(),
         vec![&(X, (Col1, Row1)), &(O, (Col2, Row2))]
@@ -55,7 +55,7 @@ fn test_make_move() {
 fn test_undoing_moves() {
     let mut game_state = GameState::new();
     assert_eq!(game_state.whose_turn(), X);
-    assert_eq!(game_state.make_move(X, (Col1, Row1)), Ok(()));
+    assert_eq!(game_state.make_move((X, (Col1, Row1))), Ok(()));
     assert_eq!(
         game_state.history().collect::<Vec<&(Marker, Position)>>(),
         vec![&(X, (Col1, Row1))]
@@ -82,9 +82,9 @@ fn test_undoing_moves() {
 fn test_you_cant_go_to_the_same_square_twice() {
     let position = (Col1, Row1);
     let mut game = GameState::new();
-    let result = game.make_move(X, position);
+    let result = game.make_move((X, position));
     assert!(result.is_ok());
-    let result = game.make_move(O, position);
+    let result = game.make_move((O, position));
     assert_eq!(result, Err(SpaceIsTaken));
 }
 
@@ -92,10 +92,10 @@ fn test_you_cant_go_to_the_same_square_twice() {
 fn test_you_cant_go_twice_in_a_row() {
     let mut game = GameState::new();
     assert_eq!(game.whose_turn(), X);
-    let result = game.make_move(X, (Col1, Row1));
+    let result = game.make_move((X, (Col1, Row1)));
     assert!(result.is_ok());
     assert_eq!(game.whose_turn(), O);
-    let result = game.make_move(X, (Col0, Row0));
+    let result = game.make_move((X, (Col0, Row0)));
     assert_eq!(result, Err(OtherPlayerTurn { attempted: X }));
 }
 
@@ -103,7 +103,7 @@ fn test_you_cant_go_twice_in_a_row() {
 fn test_you_can_get_the_board() {
     let mut game = GameState::new();
     assert_eq!(game.board(), enum_map! { _ => enum_map! { _ => None } });
-    let _ = game.make_move(X, (Col1, Row1));
+    let _ = game.make_move((X, (Col1, Row1)));
     assert_eq!(
         game.board(),
         enum_map! {
@@ -116,7 +116,7 @@ fn test_you_can_get_the_board() {
             }
         }
     );
-    let _ = game.make_move(O, (Col1, Row0));
+    let _ = game.make_move((O, (Col1, Row0)));
     assert_eq!(game.board()[Col1][Row0], Some(O));
 }
 
@@ -137,7 +137,7 @@ fn test_you_can_play_and_draw() {
     ];
 
     for &(marker, position) in &moves {
-        let r = game.make_move(marker, position);
+        let r = game.make_move((marker, position));
         assert!(r.is_ok())
     }
     assert_eq!(game.status(), Status::Draw);
@@ -156,12 +156,12 @@ fn test_you_can_play_and_win() {
     ];
 
     for &(marker, position) in &moves {
-        let result = game.make_move(marker, position);
+        let result = game.make_move((marker, position));
         assert!(result.is_ok());
         assert_eq!(game.status(), Status::InProgress);
     }
 
-    let result = game.make_move(X, (Col0, Row2));
+    let result = game.make_move((X, (Col0, Row2)));
     assert!(result.is_ok());
     assert_eq!(
         game.status(),
@@ -184,11 +184,11 @@ fn test_try_all_the_potential_wins() {
             .collect();
 
         let results = vec![
-            game.make_move(X, win[0]),
-            game.make_move(O, loss[0]),
-            game.make_move(X, win[1]),
-            game.make_move(O, loss[1]),
-            game.make_move(X, win[2]),
+            game.make_move((X, win[0])),
+            game.make_move((O, loss[0])),
+            game.make_move((X, win[1])),
+            game.make_move((O, loss[1])),
+            game.make_move((X, win[2])),
         ];
 
         for result in &results {
