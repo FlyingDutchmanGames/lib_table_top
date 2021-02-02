@@ -197,11 +197,47 @@ impl GameState {
             .filter(move |&position| !self.is_position_taken(&position))
     }
 
+    /// An iterator over the valid actions that can be played during the next turn
+    /// ```
+    /// use lib_table_top::games::tic_tac_toe::{
+    ///   GameState, Action, Row::*, Col::*, Marker::*
+    /// };
+    ///
+    /// let game: GameState = Default::default();
+    /// assert_eq!(
+    ///   game.valid_actions().collect::<Vec<Action>>(),
+    ///   vec![
+    ///     (X, (Col0, Row0)),
+    ///     (X, (Col0, Row1)),
+    ///     (X, (Col0, Row2)),
+    ///     (X, (Col1, Row0)),
+    ///     (X, (Col1, Row1)),
+    ///     (X, (Col1, Row2)),
+    ///     (X, (Col2, Row0)),
+    ///     (X, (Col2, Row1)),
+    ///     (X, (Col2, Row2))
+    ///   ]
+    /// );
+    /// ```
     pub fn valid_actions(&self) -> impl Iterator<Item = Action> + Clone + '_ {
         let whose_turn = self.whose_turn();
         self.available().map(move |action| (whose_turn, action))
     }
 
+    /// Returns the player who plays the next turn, games always start with `X`
+    /// ```
+    /// use lib_table_top::games::tic_tac_toe::{GameState, Marker::*};
+    ///
+    /// // Games always start with `X`
+    /// let mut game: GameState = Default::default();
+    /// assert_eq!(game.whose_turn(), X);
+    ///
+    /// // After X moves, it's O's turn
+    /// let action = game.valid_actions().next().unwrap();
+    /// assert!(game.make_move(action).is_ok());
+    ///
+    /// assert_eq!(game.whose_turn(), O);
+    /// ```
     pub fn whose_turn(&self) -> Marker {
         self.history
             .last()
@@ -244,7 +280,7 @@ impl GameState {
 }
 
 impl GameState {
-    pub fn undo(&mut self) -> Option<(Marker, Position)> {
+    pub fn undo(&mut self) -> Option<Action> {
         self.history.pop()
     }
 
