@@ -1,6 +1,7 @@
 use enum_map::EnumMap;
 use thiserror::Error;
 
+/// Player pieces, X & O
 #[derive(Copy, Clone, Debug, Enum, PartialEq, Eq)]
 pub enum Marker {
     X,
@@ -8,6 +9,13 @@ pub enum Marker {
 }
 
 impl Marker {
+    /// Returns the opposite player
+    /// ```
+    /// use lib_table_top::games::tic_tac_toe::Marker::*;
+    ///
+    /// assert_eq!(X, O.opponent());
+    /// assert_eq!(O, X.opponent());
+    /// ```
     pub fn opponent(&self) -> Self {
         match self {
             X => O,
@@ -18,16 +26,20 @@ impl Marker {
 
 use Marker::*;
 
+/// Various Errors that can happen from invalid actions being applied to the game
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum Error {
-    #[error("space is taken")]
+    /// Returned when trying to claim an already claimed space
+    #[error("Space is taken")]
     SpaceIsTaken,
-    #[error("not {:?}'s turn", attempted)]
+    /// Returned when the wrong player tries to take a turn
+    #[error("Not {:?}'s turn", attempted)]
     OtherPlayerTurn { attempted: Marker },
 }
 
 use Error::*;
 
+/// A `Row` of the Tic-Tac-Toe board
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Enum)]
 pub enum Row {
     Row0,
@@ -35,12 +47,14 @@ pub enum Row {
     Row2,
 }
 
+/// All the rows of the board
 impl Row {
     pub const ALL: [Self; 3] = [Row0, Row1, Row2];
 }
 
 use Row::*;
 
+/// A `Col` of the Tic-Tac-Toe board
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Enum)]
 pub enum Col {
     Col0,
@@ -48,12 +62,14 @@ pub enum Col {
     Col2,
 }
 
+/// All the cols of the board
 impl Col {
     pub const ALL: [Self; 3] = [Col0, Col1, Col2];
 }
 
 use Col::*;
 
+/// All 8 possible ways to win Tic-Tac-Toe
 pub const POSSIBLE_WINS: [[(Col, Row); 3]; 8] = [
     // Fill up a row
     [(Col0, Row0), (Col0, Row1), (Col0, Row2)],
@@ -68,13 +84,21 @@ pub const POSSIBLE_WINS: [[(Col, Row); 3]; 8] = [
     [(Col2, Row0), (Col1, Row1), (Col0, Row2)],
 ];
 
+/// A type representing a position on the board, denoted in terms of (x, y)
 pub type Position = (Col, Row);
+/// A representation of the Tic-Tac-Toe Board
 pub type Board = EnumMap<Col, EnumMap<Row, Option<Marker>>>;
+/// An action being taken by a marker to claim a position
+pub type Action = (Marker, Position);
 
+/// The three states a game can be in
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Status {
+    /// There are still available positions to be claimed on the board
     InProgress,
+    /// All positions have been claimed and there is no winner
     Draw,
+    /// All positions have been claimed and there *is* a winner
     Win {
         marker: Marker,
         positions: [Position; 3],
@@ -83,19 +107,34 @@ pub enum Status {
 
 use Status::*;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+/// Representation of a Tic-Tac-Toe game
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GameState {
-    history: Vec<(Marker, Position)>,
+    history: Vec<Action>,
+}
+
+impl Default for GameState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GameState {
+    /// Make a new Tic-Tac-Toe game, this is the same as the Default::default implementation
+    /// ```
+    /// use lib_table_top::games::tic_tac_toe::GameState;
+    ///
+    /// let game1 = GameState::new();
+    /// let game2: GameState = Default::default();
+    /// assert_eq!(game1, game2);
+    /// ```
     pub fn new() -> Self {
         GameState {
             history: Vec::with_capacity(9),
         }
     }
 
-    pub fn history(&self) -> impl Iterator<Item = &(Marker, (Col, Row))> {
+    pub fn history(&self) -> impl Iterator<Item = &Action> + Clone {
         self.history.iter()
     }
 
@@ -109,23 +148,31 @@ impl GameState {
         board
     }
 
-    pub fn available(&self) -> impl Iterator<Item = Position> + '_ {
+    pub fn available(&self) -> impl Iterator<Item = Position> + Clone + '_ {
         iproduct!(&Col::ALL, &Row::ALL)
             .map(|(&col, &row)| (col, row))
             .filter(move |&position| !self.is_position_taken(&position))
     }
 
-    pub fn whose_turn(&self) -> Option<Marker> {
-        if self.is_full() {
-            None
-        } else {
-            self.history
-                .last()
-                .map(|(marker, _pos)| marker.opponent())
-                .or(Some(X))
-        }
+    pub fn valid_actions(&self) -> impl Iterator<Item = Action> + Clone + '_ {
+        let whose_turn = self.whose_turn();
+        self.available().map(move |action| (whose_turn, action))
     }
 
+    pub fn whose_turn(&self) -> Marker {
+        self.history
+            .last()
+            .map(|(marker, _pos)| marker.opponent())
+            .unwrap_or(X)
+    }
+
+    /// Returns the status of the current game, see [`Status`](enum@Status) for more details
+    /// ```
+    /// use lib_table_top::games::tic_tac_toe::{GameState, Status};
+    ///
+    /// let game: GameState = Default::default();
+    /// assert_eq!(game.status(), Status::InProgress);
+    /// ```
     pub fn status(&self) -> Status {
         let board = self.board();
 
@@ -163,12 +210,11 @@ impl GameState {
             return Err(SpaceIsTaken);
         }
 
-        match self.whose_turn() {
-            Some(current_turn) if current_turn == marker => {
-                self.history.push((marker, position));
-                Ok(())
-            }
-            _ => Err(OtherPlayerTurn { attempted: marker }),
+        if marker == self.whose_turn() {
+            self.history.push((marker, position));
+            Ok(())
+        } else {
+            Err(OtherPlayerTurn { attempted: marker })
         }
     }
 }

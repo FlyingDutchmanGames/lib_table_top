@@ -9,12 +9,6 @@ use lib_table_top::games::tic_tac_toe::{
 };
 
 #[test]
-fn test_opponent() {
-    assert_eq!(X, O.opponent());
-    assert_eq!(O, X.opponent());
-}
-
-#[test]
 fn test_new() {
     let game_state = GameState::new();
     let board = game_state.board();
@@ -35,14 +29,14 @@ fn test_new() {
 #[test]
 fn test_make_move() {
     let mut game_state = GameState::new();
-    assert_eq!(game_state.whose_turn(), Some(X));
+    assert_eq!(game_state.whose_turn(), X);
     assert_eq!(game_state.make_move(X, (Col1, Row1)), Ok(()));
     assert_eq!(
         game_state.history().collect::<Vec<&(Marker, Position)>>(),
         vec![&(X, (Col1, Row1))]
     );
 
-    assert_eq!(game_state.whose_turn(), Some(O));
+    assert_eq!(game_state.whose_turn(), O);
 
     assert_eq!(game_state.make_move(O, (Col1, Row1)), Err(SpaceIsTaken));
     assert_eq!(
@@ -60,18 +54,18 @@ fn test_make_move() {
 #[test]
 fn test_undoing_moves() {
     let mut game_state = GameState::new();
-    assert_eq!(game_state.whose_turn(), Some(X));
+    assert_eq!(game_state.whose_turn(), X);
     assert_eq!(game_state.make_move(X, (Col1, Row1)), Ok(()));
     assert_eq!(
         game_state.history().collect::<Vec<&(Marker, Position)>>(),
         vec![&(X, (Col1, Row1))]
     );
 
-    assert_eq!(game_state.whose_turn(), Some(O));
+    assert_eq!(game_state.whose_turn(), O);
 
     // undo a made move
     assert_eq!(game_state.undo(), Some((X, (Col1, Row1))));
-    assert_eq!(game_state.whose_turn(), Some(X));
+    assert_eq!(game_state.whose_turn(), X);
     let expected: Vec<&(Marker, Position)> = vec![];
     assert_eq!(
         game_state.history().collect::<Vec<&(Marker, Position)>>(),
@@ -97,10 +91,10 @@ fn test_you_cant_go_to_the_same_square_twice() {
 #[test]
 fn test_you_cant_go_twice_in_a_row() {
     let mut game = GameState::new();
-    assert_eq!(game.whose_turn(), Some(X));
+    assert_eq!(game.whose_turn(), X);
     let result = game.make_move(X, (Col1, Row1));
     assert!(result.is_ok());
-    assert_eq!(game.whose_turn(), Some(O));
+    assert_eq!(game.whose_turn(), O);
     let result = game.make_move(X, (Col0, Row0));
     assert_eq!(result, Err(OtherPlayerTurn { attempted: X }));
 }
