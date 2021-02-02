@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![feature(array_map)]
+#![feature(array_value_iter)]
 
 #[macro_use]
 extern crate itertools;

@@ -26,7 +26,8 @@ use Player::*;
 impl Player {
     /// Return the opponent (opposite) player
     /// ```
-    /// # use crate::lib_table_top::games::marooned::Player::*;
+    /// use lib_table_top::games::marooned::Player::*;
+    ///
     /// assert_eq!(P1.opponent(), P2);
     /// assert_eq!(P2.opponent(), P1);
     /// ```
@@ -72,7 +73,8 @@ impl Dimensions {
     ///
     /// No dimension may be equal to 0, and rows * cols must be >= 2
     /// ```
-    /// # use crate::lib_table_top::games::marooned::{Dimensions, SettingsError};
+    /// use lib_table_top::games::marooned::{Dimensions, SettingsError};
+    ///
     /// assert_eq!(Dimensions::new(3, 4), Ok(Dimensions { rows: 3, cols: 4 }));
     /// assert_eq!(Dimensions::new(0, 0), Err(SettingsError::InvalidDimensions));
     /// assert_eq!(Dimensions::new(0, 9), Err(SettingsError::InvalidDimensions));
@@ -92,20 +94,22 @@ impl Dimensions {
     /// removed/currently occupied positions
     /// ```
     ///
-    /// # use crate::lib_table_top::games::marooned::{Dimensions, Position, Row, Col};
+    /// use lib_table_top::games::marooned::{Dimensions, Position, Row, Col};
+    ///
     /// let dimensions = Dimensions { rows: 2, cols: 2 };
     /// assert_eq!(
     ///   dimensions.all_positions().collect::<Vec<Position>>(),
     ///   vec![(Col(0), Row(0)), (Col(0), Row(1)), (Col(1), Row(0)), (Col(1), Row(1))]
     /// )
     /// ```
-    pub fn all_positions(&self) -> impl Iterator<Item = Position> {
+    pub fn all_positions(&self) -> impl Iterator<Item = Position> + Clone {
         iproduct!(0..self.cols, 0..self.rows).map(|(col, row)| (Col(col), Row(row)))
     }
 
     /// Returns whether a position is on the board
     /// ```
-    /// # use crate::lib_table_top::games::marooned::{Dimensions, Col, Row};
+    /// use lib_table_top::games::marooned::{Dimensions, Col, Row};
+    ///
     /// let dimensions = Dimensions { rows: 2, cols: 2 };
     /// assert!(dimensions.is_position_on_board((Col(0), Row(0))));
     /// assert!(dimensions.is_position_on_board((Col(1), Row(1))));
@@ -119,7 +123,8 @@ impl Dimensions {
     /// An iterator over the positions contained within the board that are adjacent to the given
     /// position, does not include the given position
     /// ```
-    /// # use crate::lib_table_top::games::marooned::{Dimensions, Row, Col, Position};
+    /// use lib_table_top::games::marooned::{Dimensions, Row, Col, Position};
+    ///
     /// let dimensions = Dimensions { rows: 3, cols: 3 };
     ///
     /// assert_eq!(
@@ -149,7 +154,7 @@ impl Dimensions {
     pub fn adjacenct_positions(
         &self,
         (Col(col), Row(row)): Position,
-    ) -> impl Iterator<Item = Position> + '_ {
+    ) -> impl Iterator<Item = Position> + Clone + '_ {
         iproduct!(
             Self::checked_adjacent(col, self.cols),
             Self::checked_adjacent(row, self.rows)
@@ -167,16 +172,16 @@ impl Dimensions {
         }
     }
 
-    fn checked_adjacent(starting_offset: u8, max: u8) -> Vec<u8> {
-        [
+    fn checked_adjacent(starting_offset: u8, max: u8) -> impl Iterator<Item = u8> + Clone {
+        let vals = vec![
             starting_offset.checked_add(1),
             Some(starting_offset),
             starting_offset.checked_sub(1),
-        ]
-        .iter()
-        .filter_map(|offset| *offset)
-        .filter(|&offset| offset < max)
-        .collect()
+        ];
+
+        vals.into_iter()
+            .filter_map(|offset| offset)
+            .filter(move |&offset| offset < max)
     }
 }
 
@@ -196,7 +201,8 @@ pub struct Settings {
 /// Tools to build Marooned games
 ///
 /// ```
-/// # use crate::lib_table_top::games::marooned::{Dimensions, SettingsBuilder, Col, Row};
+/// use lib_table_top::games::marooned::{Dimensions, SettingsBuilder, Col, Row};
+///
 /// assert!(SettingsBuilder::new()
 ///    .rows(3)
 ///    .cols(4)
@@ -211,7 +217,8 @@ pub struct Settings {
 /// If you're trying to play with the default settings, it's easiest to use the Default
 /// implemenation provided by [`GameState`](struct@GameState)
 /// ```
-/// # use crate::lib_table_top::games::marooned::GameState;
+/// use lib_table_top::games::marooned::GameState;
+///
 /// let game: GameState = Default::default();
 /// ```
 #[derive(Clone, Debug)]
@@ -364,9 +371,8 @@ impl GameState {
 
     /// Returns the current status of a game
     /// ```
-    /// # use crate::lib_table_top::games::marooned::{
-    /// #     GameState, Status, SettingsBuilder, Player::*
-    /// # };
+    /// use lib_table_top::games::marooned::{GameState, Status, SettingsBuilder, Player::*};
+    ///
     /// // A new default game is in progress
     /// let game: GameState = Default::default();
     /// assert_eq!(game.status(), Status::InProgress);
@@ -393,7 +399,8 @@ impl GameState {
 
     /// Returns the player who's turn it currently is. All games start with P1
     /// ```
-    /// # use crate::lib_table_top::games::marooned::{Player, GameState};
+    /// use lib_table_top::games::marooned::{Player, GameState};
+    ///
     /// let game: GameState = Default::default();
     /// assert_eq!(game.whose_turn(), Player::P1);
     /// ```
@@ -404,16 +411,39 @@ impl GameState {
             .unwrap_or(P1)
     }
 
-    /// An iterator over the game history, starting from the beginning
-    pub fn history(&self) -> impl Iterator<Item = &Action> {
+    /// An iterator over the actions made, in order, starting from the beginning of the game
+    /// ```
+    /// use lib_table_top::games::marooned::{GameState, Action};
+    ///
+    /// let mut game: GameState = Default::default();
+    ///
+    /// // History starts empty
+    /// assert_eq!(game.history().count(), 0);
+    ///
+    /// // Apply some actions
+    /// let action_1 = game.valid_actions().next().unwrap();
+    /// assert!(game.make_move(action_1).is_ok());
+    ///
+    /// let action_2 = game.valid_actions().next().unwrap();
+    /// assert!(game.make_move(action_2).is_ok());
+    ///
+    /// let action_3 = game.valid_actions().next().unwrap();
+    /// assert!(game.make_move(action_3).is_ok());
+    ///
+    /// // `game.history()` is an iterator over the actions in order
+    /// assert_eq!(
+    ///   game.history().collect::<Vec<&Action>>(),
+    ///   vec![&action_1, &action_2, &action_3]
+    /// )
+    /// ```
+    pub fn history(&self) -> impl Iterator<Item = &Action> + Clone {
         self.history.iter()
     }
 
     /// Returns an iterator of the positions that have already been removed
     /// ```
-    /// # use crate::lib_table_top::games::marooned::{
-    /// #   GameState, Position, SettingsBuilder, Row, Col
-    /// # };
+    /// use lib_table_top::games::marooned::{GameState, Position, SettingsBuilder, Row, Col};
+    ///
     /// // The default game settings start with no removed positions
     /// let game: GameState = Default::default();
     /// let removed: Vec<Position> = game.removed_positions().collect();
@@ -425,7 +455,7 @@ impl GameState {
     /// let removed: Vec<Position> = game.removed_positions().collect();
     /// assert_eq!(removed, vec![pos]);
     /// ```
-    pub fn removed_positions(&self) -> impl Iterator<Item = Position> + '_ {
+    pub fn removed_positions(&self) -> impl Iterator<Item = Position> + Clone + '_ {
         self.settings
             .starting_removed_positions
             .iter()
@@ -434,16 +464,15 @@ impl GameState {
     }
 
     /// Calls `removable_positions_for_player` with the current player
-    pub fn removable_positions(&self) -> impl Iterator<Item = Position> + '_ {
+    pub fn removable_positions(&self) -> impl Iterator<Item = Position> + Clone + '_ {
         self.removable_positions_for_player(self.whose_turn())
     }
 
     /// Returns an iterator of removable positions for a player. Players can not remove the space
     /// their opponent is on, but can remove they space they are currently on
     /// ```
-    /// # use crate::lib_table_top::games::marooned::{
-    /// #    SettingsBuilder, Row, Col, Player::*, Position
-    /// # };
+    /// use lib_table_top::games::marooned::{SettingsBuilder, Row, Col, Player::*, Position};
+    ///
     /// let game = SettingsBuilder::new().rows(2).cols(2).build_game().unwrap();
     /// let removable: Vec<Position> = game.removable_positions_for_player(P1).collect();
     /// assert_eq!(removable, vec![(Col(0), Row(0)), (Col(1), Row(0)), (Col(1), Row(1))]);
@@ -451,7 +480,7 @@ impl GameState {
     pub fn removable_positions_for_player(
         &self,
         player: Player,
-    ) -> impl Iterator<Item = Position> + '_ {
+    ) -> impl Iterator<Item = Position> + Clone + '_ {
         self.settings
             .dimensions
             .all_positions()
@@ -460,7 +489,8 @@ impl GameState {
 
     /// Tests whether a position is allowed to be removed by a certain player
     /// ```
-    /// # use crate::lib_table_top::games::marooned::{GameState, Player::*};
+    /// use lib_table_top::games::marooned::{GameState, Player::*};
+    ///
     /// let game: GameState = Default::default();
     /// for position in game.removable_positions_for_player(P1) {
     ///    assert!(game.is_position_allowed_to_be_removed(position, P1));
@@ -475,7 +505,8 @@ impl GameState {
     /// An iterator over the allowed movements of a player, this takes into account board
     /// dimensions, removed positions, the opponent location
     /// ```
-    /// # use crate::lib_table_top::games::marooned::{GameState, Position, Row, Col};
+    /// use lib_table_top::games::marooned::{GameState, Position, Row, Col};
+    ///
     /// let game: GameState = Default::default();
     /// let movements: Vec<Position> =
     ///     game
@@ -489,28 +520,23 @@ impl GameState {
     pub fn allowed_movement_targets_for_player(
         &self,
         player: Player,
-    ) -> impl Iterator<Item = Position> + '_ {
+    ) -> impl Iterator<Item = Position> + Clone + '_ {
         let removed: Vec<Position> = self.removed_positions().collect();
-        let player_positions: Vec<Position> = self
-            .player_positions()
-            .iter()
-            .map(|(_player, position)| position)
-            .copied()
-            .collect();
+        let other_player_position = self.player_position(player.opponent());
 
         self.settings
             .dimensions
             .adjacenct_positions(self.player_position(player))
-            .filter(move |position| {
-                !removed.contains(&position) && !player_positions.contains(&position)
-            })
+            .filter(move |position| !removed.contains(&position))
+            .filter(move |&position| position != other_player_position)
     }
 
     /// An iterator over all the valid actions the current player can take.
     /// Doesn't return the actions in any particular order, but will return all the actions that
     /// could possibly be valid.
     /// ```
-    /// # use crate::lib_table_top::games::marooned::{Action, SettingsBuilder, Row, Col, Player::*};
+    /// use lib_table_top::games::marooned::{Action, SettingsBuilder, Row, Col, Player::*};
+    ///
     /// let game = SettingsBuilder::new().rows(2).cols(2).build_game().unwrap();
     /// let actions: Vec<Action> = game.valid_actions().collect();
     /// assert_eq!(
@@ -526,18 +552,18 @@ impl GameState {
     ///
     /// This can be used to generate a random valid move for an AI
     /// ```
-    /// # use crate::lib_table_top::games::marooned::{Action, GameState};
+    /// use lib_table_top::games::marooned::{Action, GameState};
+    ///
     /// let mut game: GameState = Default::default();
     /// let action: Action = game.valid_actions().next().unwrap();
     /// assert!(game.make_move(action).is_ok());
     /// ```
-    pub fn valid_actions(&self) -> impl Iterator<Item = Action> + '_ {
+    pub fn valid_actions(&self) -> impl Iterator<Item = Action> + Clone + '_ {
         let player = self.whose_turn();
 
         iproduct!(
-            self.allowed_movement_targets_for_player(player)
-                .collect::<Vec<Position>>(),
-            self.removable_positions().collect::<Vec<Position>>()
+            self.allowed_movement_targets_for_player(player),
+            self.removable_positions()
         )
         .filter(|(to, remove)| to != remove)
         .map(move |(to, remove)| Action { player, to, remove })
@@ -552,7 +578,8 @@ impl GameState {
 
     /// Returns the position of a player
     /// ```
-    /// # use crate::lib_table_top::games::marooned::{SettingsBuilder, Row, Col, Player::*};
+    /// use lib_table_top::games::marooned::{SettingsBuilder, Row, Col, Player::*};
+    ///
     /// let p1_starting = (Col(3), Row(3));
     /// let game = SettingsBuilder::new().p1_starting(p1_starting).build_game().unwrap();
     /// assert_eq!(p1_starting, game.player_position(P1));
@@ -587,9 +614,8 @@ impl GameState {
     /// Moves the game forward by doing an action, returns an error and doesn't do anything if the
     /// action isn't valid for some reason.
     /// ```
-    /// # use crate::lib_table_top::games::marooned::{
-    /// #  Action, GameState, ActionError, Row, Col, Player::*
-    /// # };
+    /// use lib_table_top::games::marooned::{Action, GameState, ActionError, Row, Col, Player::*};
+    ///
     /// let mut game: GameState = Default::default();
     /// let valid_action = game.valid_actions().next().unwrap();
     ///
@@ -653,7 +679,8 @@ impl GameState {
     /// Allows you to undo the the most recent action, returning the action.
     /// It returns `None` on new games with no actions yet
     /// ```
-    /// # use crate::lib_table_top::games::marooned::GameState;
+    /// use lib_table_top::games::marooned::GameState;
+    ///
     /// // New games have no actions to undo
     /// let mut game: GameState = Default::default();
     /// assert_eq!(game.undo(), None);
