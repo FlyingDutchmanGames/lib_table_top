@@ -199,7 +199,8 @@ impl Default for Dimensions {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Settings {
     pub dimensions: Dimensions,
-    starting_player_positions: EnumMap<Player, Position>,
+    p1_starting: Position,
+    p2_starting: Position,
     starting_removed_positions: Vec<Position>,
 }
 
@@ -292,14 +293,13 @@ impl Settings {
         let default_starting = dimensions.default_player_starting_positions();
         let p1_starting = builder.p1_starting.unwrap_or(default_starting[P1]);
         let p2_starting = builder.p2_starting.unwrap_or(default_starting[P2]);
-        let starting_player_positions = enum_map! { P1 => p1_starting, P2 => p2_starting };
 
         for &pos in &builder.starting_removed_positions {
             if !dimensions.is_position_on_board(pos) {
                 return Err(CantRemovePositionNotOnBoard { pos });
             }
         }
-        for (player, position) in starting_player_positions {
+        for &(player, position) in &[(P1, p1_starting), (P2, p2_starting)] {
             if !dimensions.is_position_on_board(position) {
                 return Err(PlayersMustStartOnBoard { player, position });
             }
@@ -313,13 +313,14 @@ impl Settings {
         starting_removed_positions.sort();
         starting_removed_positions.dedup();
 
-        if starting_player_positions[P1] == starting_player_positions[P2] {
+        if p1_starting == p2_starting {
             return Err(PlayersCantStartAtSamePosition);
         }
 
         Ok(Self {
             dimensions,
-            starting_player_positions,
+            p1_starting,
+            p2_starting,
             starting_removed_positions,
         })
     }
@@ -329,10 +330,8 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             dimensions: Default::default(),
-            starting_player_positions: enum_map! {
-                P1 => (Col(2), Row(0)),
-                P2 => (Col(3), Row(7)),
-            },
+            p1_starting: (Col(2), Row(0)),
+            p2_starting: (Col(3), Row(7)),
             starting_removed_positions: Default::default(),
         }
     }
@@ -596,7 +595,10 @@ impl GameState {
             .filter(|Action { player: p, .. }| p == &player)
             .map(|Action { to, .. }| *to)
             .next()
-            .unwrap_or(self.settings.starting_player_positions[player])
+            .unwrap_or_else(|| match player {
+                P1 => self.settings.p1_starting,
+                P2 => self.settings.p2_starting,
+            })
     }
 }
 
