@@ -1,5 +1,5 @@
 use lib_table_top::games::marooned::{
-    Action, Col, Dimensions, GameState, Player::*, Position, Row, SettingsBuilder,
+    Action, Col, Dimensions, GameState, Player::*, Position, Row, Settings, SettingsBuilder,
     SettingsError::*, Status::*,
 };
 use serde_json::json;
@@ -27,15 +27,6 @@ fn test_dimensions() {
             (Col(2), Row(1))
         ]
     );
-}
-
-#[test]
-fn test_serializing_dimensions() {
-    let dimensions: Dimensions = Default::default();
-    let serialized = serde_json::to_value(&dimensions).unwrap();
-    assert_eq!(serialized, json!({"rows": 8, "cols": 6}));
-    let deserialized: Dimensions = serde_json::from_value(serialized).unwrap();
-    assert_eq!(deserialized, dimensions);
 }
 
 #[test]
@@ -133,4 +124,84 @@ fn test_settings_handle_invalid_inputs() {
     for &(rows, cols) in &[(0, 0), (0, 2), (2, 0), (1, 1)] {
         assert_eq!(Err(InvalidDimensions), Dimensions::new(rows, cols));
     }
+}
+
+#[test]
+fn test_serializing_dimensions() {
+    let dimensions: Dimensions = Default::default();
+    let serialized = serde_json::to_value(&dimensions).unwrap();
+    assert_eq!(serialized, json!({"rows": 8, "cols": 6}));
+    let deserialized: Dimensions = serde_json::from_value(serialized).unwrap();
+    assert_eq!(deserialized, dimensions);
+}
+
+#[test]
+fn test_serializing_actions() {
+    let action = Action {
+        to: (Col(0), Row(0)),
+        remove: (Col(1), Row(1)),
+        player: P1,
+    };
+    let serialized = serde_json::to_value(&action).unwrap();
+    assert_eq!(
+        serialized,
+        json!({"player": 1, "to": [0, 0], "remove": [1, 1]})
+    );
+    let deserialized: Action = serde_json::from_value(serialized).unwrap();
+    assert_eq!(action, deserialized);
+}
+
+#[test]
+fn test_serializing_settings() {
+    let settings = SettingsBuilder::new()
+        .starting_removed_positions(vec![(Col(0), Row(0))])
+        .build()
+        .unwrap();
+    let serialized = serde_json::to_value(&settings).unwrap();
+    assert_eq!(
+        serialized,
+        json!({
+            "dimensions": {"cols": 6, "rows": 8},
+            "p1_starting": [3, 0],
+            "p2_starting": [2, 7],
+            "starting_removed_positions": [[0, 0]],
+        })
+    );
+    let deserialized: Settings = serde_json::from_value(serialized).unwrap();
+    assert_eq!(settings, deserialized);
+}
+
+#[test]
+fn test_serializing_game_state() {
+    let mut game: GameState = SettingsBuilder::new()
+        .starting_removed_positions(vec![(Col(0), Row(0))])
+        .build_game()
+        .unwrap();
+
+    let actions: Vec<Action> = vec![(); 3]
+        .iter()
+        .map(|_| {
+            let action = game.valid_actions().next().unwrap();
+            assert!(game.make_move(action).is_ok());
+            action
+        })
+        .collect();
+
+    let serialized = serde_json::to_value(&game).unwrap();
+    assert_eq!(
+        serialized,
+        json!({
+            "history": actions,
+            "settings": {
+                "dimensions": {
+                    "cols": 6, "rows": 8
+                },
+                "p1_starting": [3, 0],
+                "p2_starting": [2, 7],
+                "starting_removed_positions": [[0, 0]]
+            },
+        })
+    );
+    let deserialized: GameState = serde_json::from_value(serialized).unwrap();
+    assert_eq!(game, deserialized);
 }

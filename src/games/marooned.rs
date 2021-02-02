@@ -196,7 +196,7 @@ impl Default for Dimensions {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Settings {
     pub dimensions: Dimensions,
     p1_starting: Position,
@@ -338,7 +338,7 @@ impl Default for Settings {
 }
 
 /// Action that player makes on the game
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Action {
     pub player: Player,
     pub to: Position,
@@ -357,7 +357,7 @@ pub enum Status {
 use Status::*;
 
 /// The game state
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameState {
     pub settings: Settings,
     history: Vec<Action>,
