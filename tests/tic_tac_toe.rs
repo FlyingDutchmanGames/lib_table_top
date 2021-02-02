@@ -2,6 +2,7 @@
 extern crate enum_map;
 #[macro_use]
 extern crate itertools;
+use serde_json::json;
 
 use lib_table_top::games::tic_tac_toe::{
     Col, Col::*, Error::*, GameState, Marker, Marker::*, Position, Row, Row::*, Status,
@@ -207,4 +208,34 @@ fn test_try_all_the_potential_wins() {
             }
         );
     }
+}
+
+#[test]
+fn serialize_and_deserialize() {
+    let mut game: GameState = Default::default();
+
+    let serialized = serde_json::to_value(&game).unwrap();
+    assert_eq!(serialized, json!({ "history": [] }));
+
+    let deserialized: GameState = serde_json::from_value(serialized).unwrap();
+    assert_eq!(deserialized, game);
+
+    assert!(game.make_move((X, (Col1, Row1))).is_ok());
+
+    let serialized = serde_json::to_value(&game).unwrap();
+    assert_eq!(serialized, json!({ "history": [["X", [1, 1]]] }));
+
+    let deserialized: GameState = serde_json::from_value(serialized).unwrap();
+    assert_eq!(deserialized, game);
+
+    assert!(game.make_move((O, (Col2, Row2))).is_ok());
+
+    let serialized = serde_json::to_value(&game).unwrap();
+    assert_eq!(
+        serialized,
+        json!({ "history": [["X", [1, 1]], ["O", [2, 2]]] })
+    );
+
+    let deserialized: GameState = serde_json::from_value(serialized).unwrap();
+    assert_eq!(deserialized, game);
 }
