@@ -114,7 +114,7 @@ use Status::*;
 /// Representation of a Tic-Tac-Toe game
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameState {
-    history: Vec<Action>,
+    history: Vec<Position>,
 }
 
 impl Default for GameState {
@@ -158,12 +158,16 @@ impl GameState {
     ///
     /// assert_eq!(game.history().count(), 3);
     /// assert_eq!(
-    ///   game.history().collect::<Vec<&Action>>(),
-    ///   vec![&action1, &action2, &action3]
+    ///   game.history().collect::<Vec<Action>>(),
+    ///   vec![action1, action2, action3]
     /// )
     /// ```
-    pub fn history(&self) -> impl Iterator<Item = &Action> + Clone {
-        self.history.iter()
+    pub fn history(&self) -> impl Iterator<Item = Action> + Clone + '_ {
+        let players = [X, O].iter().cycle();
+        self.history
+            .iter()
+            .zip(players)
+            .map(|(&position, &player)| (player, position))
     }
 
     /// Maps Col => Row => Players for the current state of the game
@@ -189,7 +193,7 @@ impl GameState {
     pub fn board(&self) -> Board {
         let mut board = enum_map! { _ => enum_map! { _ => None }};
 
-        self.history.iter().for_each(|&(marker, (col, row))| {
+        self.history().for_each(|(marker, (col, row))| {
             board[col][row] = Some(marker);
         });
 
@@ -263,10 +267,11 @@ impl GameState {
     /// assert_eq!(game.whose_turn(), O);
     /// ```
     pub fn whose_turn(&self) -> Player {
-        self.history
-            .last()
-            .map(|(marker, _pos)| marker.opponent())
-            .unwrap_or(X)
+        if self.history.len() % 2 == 0 {
+            X
+        } else {
+            O
+        }
     }
 
     /// Returns the status of the current game, see [`Status`](enum@Status) for more details
@@ -299,7 +304,7 @@ impl GameState {
     }
 
     fn is_position_taken(&self, position: &Position) -> bool {
-        self.history.iter().any(|(_marker, pos)| pos == position)
+        self.history.iter().any(|pos| pos == position)
     }
 }
 
@@ -325,7 +330,9 @@ impl GameState {
     /// assert_eq!(game, original_game);
     /// ```
     pub fn undo(&mut self) -> Option<Action> {
-        self.history.pop()
+        // NGL, this one is tricky, because once you pop(), it switches whose turn it is.
+        let current_player = self.whose_turn().opponent();
+        self.history.pop().map(|pos| (current_player, pos))
     }
 
     /// Apply an action to the game, returns nothing if successful, and returns an error and
@@ -361,8 +368,7 @@ impl GameState {
         }
 
         if marker == self.whose_turn() {
-            self.history.push((marker, position));
-            Ok(())
+            Ok(self.history.push(position))
         } else {
             Err(OtherPlayerTurn { attempted: marker })
         }

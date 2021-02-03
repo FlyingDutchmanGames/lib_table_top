@@ -33,8 +33,8 @@ fn test_make_move() {
     assert_eq!(game_state.whose_turn(), X);
     assert_eq!(game_state.make_move((X, (Col1, Row1))), Ok(()));
     assert_eq!(
-        game_state.history().collect::<Vec<&(Player, Position)>>(),
-        vec![&(X, (Col1, Row1))]
+        game_state.history().collect::<Vec<(Player, Position)>>(),
+        vec![(X, (Col1, Row1))]
     );
 
     assert_eq!(game_state.whose_turn(), O);
@@ -51,8 +51,8 @@ fn test_make_move() {
 
     assert_eq!(game_state.make_move((O, (Col2, Row2))), Ok(()));
     assert_eq!(
-        game_state.history().collect::<Vec<&(Player, Position)>>(),
-        vec![&(X, (Col1, Row1)), &(O, (Col2, Row2))]
+        game_state.history().collect::<Vec<(Player, Position)>>(),
+        vec![(X, (Col1, Row1)), (O, (Col2, Row2))]
     );
 }
 
@@ -62,8 +62,8 @@ fn test_undoing_moves() {
     assert_eq!(game_state.whose_turn(), X);
     assert_eq!(game_state.make_move((X, (Col1, Row1))), Ok(()));
     assert_eq!(
-        game_state.history().collect::<Vec<&(Player, Position)>>(),
-        vec![&(X, (Col1, Row1))]
+        game_state.history().collect::<Vec<(Player, Position)>>(),
+        vec![(X, (Col1, Row1))]
     );
 
     assert_eq!(game_state.whose_turn(), O);
@@ -71,10 +71,9 @@ fn test_undoing_moves() {
     // undo a made move
     assert_eq!(game_state.undo(), Some((X, (Col1, Row1))));
     assert_eq!(game_state.whose_turn(), X);
-    let expected: Vec<&(Player, Position)> = vec![];
     assert_eq!(
-        game_state.history().collect::<Vec<&(Player, Position)>>(),
-        expected
+        game_state.history().collect::<Vec<(Player, Position)>>(),
+        vec![],
     );
 }
 
@@ -223,7 +222,7 @@ fn test_serializing_tic_tac_toe() {
     assert!(game.make_move((X, (Col1, Row1))).is_ok());
 
     let serialized = serde_json::to_value(&game).unwrap();
-    assert_eq!(serialized, json!({ "history": [["X", [1, 1]]] }));
+    assert_eq!(serialized, json!({ "history": [[1, 1]] }));
 
     let deserialized: GameState = serde_json::from_value(serialized).unwrap();
     assert_eq!(deserialized, game);
@@ -231,10 +230,7 @@ fn test_serializing_tic_tac_toe() {
     assert!(game.make_move((O, (Col2, Row2))).is_ok());
 
     let serialized = serde_json::to_value(&game).unwrap();
-    assert_eq!(
-        serialized,
-        json!({ "history": [["X", [1, 1]], ["O", [2, 2]]] })
-    );
+    assert_eq!(serialized, json!({ "history": [[1, 1], [2, 2]] }));
 
     let deserialized: GameState = serde_json::from_value(serialized).unwrap();
     assert_eq!(deserialized, game);
