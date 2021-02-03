@@ -5,7 +5,7 @@ extern crate itertools;
 use serde_json::json;
 
 use lib_table_top::games::tic_tac_toe::{
-    Col, Col::*, Error::*, GameState, Marker, Marker::*, Position, Row, Row::*, Status,
+    Col, Col::*, Error::*, GameState, Player, Player::*, Position, Row, Row::*, Status,
     POSSIBLE_WINS,
 };
 
@@ -33,7 +33,7 @@ fn test_make_move() {
     assert_eq!(game_state.whose_turn(), X);
     assert_eq!(game_state.make_move((X, (Col1, Row1))), Ok(()));
     assert_eq!(
-        game_state.history().collect::<Vec<&(Marker, Position)>>(),
+        game_state.history().collect::<Vec<&(Player, Position)>>(),
         vec![&(X, (Col1, Row1))]
     );
 
@@ -51,7 +51,7 @@ fn test_make_move() {
 
     assert_eq!(game_state.make_move((O, (Col2, Row2))), Ok(()));
     assert_eq!(
-        game_state.history().collect::<Vec<&(Marker, Position)>>(),
+        game_state.history().collect::<Vec<&(Player, Position)>>(),
         vec![&(X, (Col1, Row1)), &(O, (Col2, Row2))]
     );
 }
@@ -62,7 +62,7 @@ fn test_undoing_moves() {
     assert_eq!(game_state.whose_turn(), X);
     assert_eq!(game_state.make_move((X, (Col1, Row1))), Ok(()));
     assert_eq!(
-        game_state.history().collect::<Vec<&(Marker, Position)>>(),
+        game_state.history().collect::<Vec<&(Player, Position)>>(),
         vec![&(X, (Col1, Row1))]
     );
 
@@ -71,9 +71,9 @@ fn test_undoing_moves() {
     // undo a made move
     assert_eq!(game_state.undo(), Some((X, (Col1, Row1))));
     assert_eq!(game_state.whose_turn(), X);
-    let expected: Vec<&(Marker, Position)> = vec![];
+    let expected: Vec<&(Player, Position)> = vec![];
     assert_eq!(
-        game_state.history().collect::<Vec<&(Marker, Position)>>(),
+        game_state.history().collect::<Vec<&(Player, Position)>>(),
         expected
     );
 }

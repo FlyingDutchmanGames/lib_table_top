@@ -5,15 +5,15 @@ use thiserror::Error;
 
 /// Player pieces, X & O
 #[derive(Copy, Clone, Debug, Enum, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Marker {
+pub enum Player {
     X,
     O,
 }
 
-impl Marker {
+impl Player {
     /// Returns the opposite player
     /// ```
-    /// use lib_table_top::games::tic_tac_toe::Marker::*;
+    /// use lib_table_top::games::tic_tac_toe::Player::*;
     ///
     /// assert_eq!(X, O.opponent());
     /// assert_eq!(O, X.opponent());
@@ -26,7 +26,7 @@ impl Marker {
     }
 }
 
-use Marker::*;
+use Player::*;
 
 /// Various Errors that can happen from invalid actions being applied to the game
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -36,7 +36,7 @@ pub enum Error {
     SpaceIsTaken { attempted: Position },
     /// Returned when the wrong player tries to take a turn
     #[error("not {:?}'s turn", attempted)]
-    OtherPlayerTurn { attempted: Marker },
+    OtherPlayerTurn { attempted: Player },
 }
 
 use Error::*;
@@ -91,9 +91,9 @@ pub const POSSIBLE_WINS: [[(Col, Row); 3]; 8] = [
 /// A type representing a position on the board, denoted in terms of (x, y)
 pub type Position = (Col, Row);
 /// A representation of the Tic-Tac-Toe Board
-pub type Board = EnumMap<Col, EnumMap<Row, Option<Marker>>>;
+pub type Board = EnumMap<Col, EnumMap<Row, Option<Player>>>;
 /// An action being taken by a marker to claim a position
-pub type Action = (Marker, Position);
+pub type Action = (Player, Position);
 
 /// The three states a game can be in
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -104,7 +104,7 @@ pub enum Status {
     Draw,
     /// All positions have been claimed and there *is* a winner
     Win {
-        marker: Marker,
+        marker: Player,
         positions: [Position; 3],
     },
 }
@@ -166,9 +166,9 @@ impl GameState {
         self.history.iter()
     }
 
-    /// Maps Col => Row => Markers for the current state of the game
+    /// Maps Col => Row => Players for the current state of the game
     /// ```
-    /// use lib_table_top::games::tic_tac_toe::{GameState, Row, Row::*, Col, Col::*, Marker::*};
+    /// use lib_table_top::games::tic_tac_toe::{GameState, Row, Row::*, Col, Col::*, Player::*};
     ///
     /// let mut game: GameState = Default::default();
     ///
@@ -224,7 +224,7 @@ impl GameState {
     /// An iterator over the valid actions that can be played during the next turn
     /// ```
     /// use lib_table_top::games::tic_tac_toe::{
-    ///   GameState, Action, Row::*, Col::*, Marker::*
+    ///   GameState, Action, Row::*, Col::*, Player::*
     /// };
     ///
     /// let game: GameState = Default::default();
@@ -250,7 +250,7 @@ impl GameState {
 
     /// Returns the player who plays the next turn, games always start with `X`
     /// ```
-    /// use lib_table_top::games::tic_tac_toe::{GameState, Marker::*};
+    /// use lib_table_top::games::tic_tac_toe::{GameState, Player::*};
     ///
     /// // Games always start with `X`
     /// let mut game: GameState = Default::default();
@@ -262,7 +262,7 @@ impl GameState {
     ///
     /// assert_eq!(game.whose_turn(), O);
     /// ```
-    pub fn whose_turn(&self) -> Marker {
+    pub fn whose_turn(&self) -> Player {
         self.history
             .last()
             .map(|(marker, _pos)| marker.opponent())
@@ -332,7 +332,7 @@ impl GameState {
     /// doesn't change the game state if there is an issue with the action
     /// ```
     /// use lib_table_top::games::tic_tac_toe::{
-    ///   GameState, Error::*, Marker::*, Row::*, Col::*
+    ///   GameState, Error::*, Player::*, Row::*, Col::*
     /// };
     ///
     /// let mut game: GameState = Default::default();
