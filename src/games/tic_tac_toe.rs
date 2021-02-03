@@ -92,7 +92,7 @@ pub const POSSIBLE_WINS: [[(Col, Row); 3]; 8] = [
 pub type Position = (Col, Row);
 /// A representation of the Tic-Tac-Toe Board
 pub type Board = EnumMap<Col, EnumMap<Row, Option<Player>>>;
-/// An action being taken by a marker to claim a position
+/// An action being taken by a player to claim a position
 pub type Action = (Player, Position);
 
 /// The three states a game can be in
@@ -104,7 +104,7 @@ pub enum Status {
     Draw,
     /// All positions have been claimed and there *is* a winner
     Win {
-        marker: Player,
+        player: Player,
         positions: [Position; 3],
     },
 }
@@ -193,8 +193,8 @@ impl GameState {
     pub fn board(&self) -> Board {
         let mut board = enum_map! { _ => enum_map! { _ => None }};
 
-        self.history().for_each(|(marker, (col, row))| {
-            board[col][row] = Some(marker);
+        self.history().for_each(|(player, (col, row))| {
+            board[col][row] = Some(player);
         });
 
         board
@@ -290,7 +290,7 @@ impl GameState {
                 let [a, b, c] = positions.map(|(col, row)| board[col][row]);
 
                 if a == b && b == c {
-                    a.map(|marker| Win { marker, positions })
+                    a.map(|player| Win { player, positions })
                 } else {
                     None
                 }
@@ -360,17 +360,17 @@ impl GameState {
     /// assert_eq!(result, Err(SpaceIsTaken { attempted: pos }));
     /// assert_eq!(&result.unwrap_err().to_string(), "space (Col0, Row0) is taken");
     /// ```
-    pub fn make_move(&mut self, (marker, position): Action) -> Result<(), Error> {
+    pub fn make_move(&mut self, (player, position): Action) -> Result<(), Error> {
         if self.is_position_taken(&position) {
             return Err(SpaceIsTaken {
                 attempted: position,
             });
         }
 
-        if marker == self.whose_turn() {
+        if player == self.whose_turn() {
             Ok(self.history.push(position))
         } else {
-            Err(OtherPlayerTurn { attempted: marker })
+            Err(OtherPlayerTurn { attempted: player })
         }
     }
 }

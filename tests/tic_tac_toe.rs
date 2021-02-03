@@ -140,8 +140,8 @@ fn test_you_can_play_and_draw() {
         (X, (Col1, Row2)),
     ];
 
-    for &(marker, position) in &moves {
-        let r = game.make_move((marker, position));
+    for &(player, position) in &moves {
+        let r = game.make_move((player, position));
         assert!(r.is_ok())
     }
     assert_eq!(game.status(), Status::Draw);
@@ -159,8 +159,8 @@ fn test_you_can_play_and_win() {
         (O, (Col1, Row1)),
     ];
 
-    for &(marker, position) in &moves {
-        let result = game.make_move((marker, position));
+    for &(player, position) in &moves {
+        let result = game.make_move((player, position));
         assert!(result.is_ok());
         assert_eq!(game.status(), Status::InProgress);
     }
@@ -170,7 +170,7 @@ fn test_you_can_play_and_win() {
     assert_eq!(
         game.status(),
         Status::Win {
-            marker: X,
+            player: X,
             positions: [(Col0, Row0), (Col0, Row1), (Col0, Row2)]
         }
     );
@@ -202,7 +202,7 @@ fn test_try_all_the_potential_wins() {
         assert_eq!(
             game.status(),
             Status::Win {
-                marker: X,
+                player: X,
                 positions: win
             }
         );
