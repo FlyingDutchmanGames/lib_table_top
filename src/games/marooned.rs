@@ -359,7 +359,7 @@ use Status::*;
 /// The game state
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameState {
-    pub settings: Settings,
+    settings: Settings,
     history: Vec<Action>,
 }
 
@@ -371,6 +371,14 @@ impl GameState {
             settings,
             history: vec![],
         }
+    }
+
+    pub fn settings(&self) -> &Settings {
+        &self.settings
+    }
+
+    pub fn dimensions(&self) -> &Dimensions {
+        &self.settings.dimensions
     }
 
     /// Returns the current status of a game

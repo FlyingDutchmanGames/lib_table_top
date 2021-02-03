@@ -80,8 +80,8 @@ fn test_make_a_new_game_from_settings_builder() {
 
     assert_eq!(game.player_position(P1), (Col(0), Row(0)));
     assert_eq!(game.player_position(P2), (Col(1), Row(1)));
-    assert_eq!(game.settings.dimensions.rows, 10);
-    assert_eq!(game.settings.dimensions.cols, 9);
+    assert_eq!(game.dimensions().rows, 10);
+    assert_eq!(game.dimensions().cols, 9);
 }
 
 #[test]
