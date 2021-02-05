@@ -12,5 +12,10 @@ extern crate thiserror;
 
 extern crate colored;
 
+extern crate rand;
+extern crate rand_chacha;
+
+extern crate hex;
+
 pub mod common;
 pub mod games;
