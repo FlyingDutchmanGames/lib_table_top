@@ -70,13 +70,13 @@ impl GameType {
 
 use GameType::*;
 
-pub struct GameState {
+pub struct GameHistory {
     game_type: GameType,
     seed: RngSeed,
     history: Vec<Action>,
 }
 
-pub struct GameView {
+pub struct GameState {
     rng: ChaCha20Rng,
     game_type: GameType,
     discarded: Vec<Card>,
@@ -115,7 +115,7 @@ pub enum ActionError {
 
 use ActionError::*;
 
-impl GameView {
+impl GameState {
     fn new(mut rng: ChaCha20Rng, game_type: GameType) -> Self {
         let mut cards: Vec<Card> = STANDARD_DECK.into();
         cards.shuffle(&mut rng);
@@ -283,11 +283,9 @@ impl GameView {
     }
 }
 
-impl GameState {}
-
-impl GameState {
-    pub fn new(game_type: GameType, seed: RngSeed) -> GameState {
-        GameState {
+impl GameHistory {
+    pub fn new(game_type: GameType, seed: RngSeed) -> Self {
+        Self {
             game_type,
             seed,
             history: Vec::new(),
@@ -301,15 +299,9 @@ impl GameState {
             .map(|(action, player_num)| (Player(player_num), action))
     }
 
-    pub fn make_move(&mut self, (player, action): (Player, Action)) -> Result<(), ActionError> {
-        let mut gv = self.game_view()?;
-        gv.make_move((player, action))?;
-        Ok(self.history.push(action))
-    }
-
-    pub fn game_view(&self) -> Result<GameView, ActionError> {
+    pub fn game_state(&self) -> Result<GameState, ActionError> {
         let rng = self.seed.into_rng();
-        let mut game_view = GameView::new(rng, self.game_type);
+        let mut game_view = GameState::new(rng, self.game_type);
 
         for (player, &action) in self.history() {
             game_view.make_move((player, action))?
