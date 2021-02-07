@@ -2,10 +2,10 @@ use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct RngSeed([u8; 32]);
+pub struct RngSeed(pub [u8; 32]);
 
 impl RngSeed {
-    fn into_rng(self) -> ChaCha20Rng {
+    pub fn into_rng(self) -> ChaCha20Rng {
         ChaCha20Rng::from_seed(self.0)
     }
 }
