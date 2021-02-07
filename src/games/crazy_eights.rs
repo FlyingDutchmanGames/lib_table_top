@@ -1,8 +1,7 @@
 use crate::rand::prelude::SliceRandom;
 use std::collections::HashMap;
 
-use crate::common::deck::card::suit::Suit;
-use crate::common::deck::card::Card;
+use crate::common::deck::card::{rank::Rank, suit::Suit, Card};
 use crate::common::deck::STANDARD_DECK;
 use crate::common::rand::RngSeed;
 
@@ -35,12 +34,6 @@ impl GameType {
 
 use GameType::*;
 
-pub struct PlayerView {
-    // hand: &[Card],
-// played: &[Card],
-// remaining: u8
-}
-
 pub struct GameState {
     game_type: GameType,
     seed: RngSeed,
@@ -51,7 +44,6 @@ pub struct GameView {
     discard: Vec<Card>,
     hands: HashMap<Player, Vec<Card>>,
     draw_pile: Vec<Card>,
-    suit: Suit,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -59,6 +51,12 @@ pub enum Action {
     Draw,
     Play(Card),
     PlayEight(Card, Suit),
+}
+
+pub enum ActionError {
+    CantDrawWhenYouHavePlayableCards,
+    PlayerDoesNotHaveCard { player: Player, card: Card },
+    CardCantBePlayed { card: Card, needed: (Rank, Suit) },
 }
 
 impl GameState {
@@ -97,13 +95,10 @@ impl GameState {
         );
 
         let discard: Vec<Card> = (&mut deck).take(1).collect();
-        // This is safe to unwrap because there are 52 cards in the deck
-        let suit = discard.first().unwrap().suit();
 
         let gv = GameView {
             hands,
             discard,
-            suit,
             draw_pile: deck.collect(),
         };
 
@@ -131,11 +126,5 @@ impl GameState {
             .map(|player| Player(player))
             .map(|player| (player, deck.take(number_of_cards as usize).collect()))
             .collect()
-    }
-}
-
-impl PlayerView {
-    fn valid_actions(&self) -> Action {
-        todo!()
     }
 }
