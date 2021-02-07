@@ -43,9 +43,10 @@ pub struct GameState {
 }
 
 pub struct GameView {
-    discard: Vec<Card>,
+    discarded: Vec<Card>,
     hands: HashMap<Player, Vec<Card>>,
     draw_pile: Vec<Card>,
+    history: Vec<Action>,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -55,6 +56,8 @@ pub enum Action {
     PlayEight(Card, Suit),
 }
 
+use Action::*;
+
 pub enum ActionError {
     CantDrawWhenYouHavePlayableCards,
     PlayerDoesNotHaveCard { player: Player, card: Card },
@@ -62,7 +65,7 @@ pub enum ActionError {
 }
 
 impl GameView {
-    fn new(mut rng: ChaCha20Rng, game_type: GameType) -> Self {
+    pub fn new(mut rng: ChaCha20Rng, game_type: GameType) -> Self {
         let mut deck: Vec<Card> = STANDARD_DECK.into();
         deck.shuffle(&mut rng);
         let mut deck = deck.into_iter();
@@ -79,13 +82,35 @@ impl GameView {
             })
             .collect();
 
-        let discard: Vec<Card> = (&mut deck).take(1).collect();
+        let discarded: Vec<Card> = (&mut deck).take(1).collect();
 
         Self {
             hands,
-            discard,
+            discarded,
+            history: vec![],
             draw_pile: deck.collect(),
         }
+    }
+
+    pub fn make_move(&mut self, (_player, _action): (Player, Action)) -> Result<(), ActionError> {
+        todo!()
+    }
+
+    pub fn current_rank_and_suit(&self) -> (Rank, Suit) {
+        self.history
+            .iter()
+            .rev()
+            .filter_map(|action| match action {
+                Draw => None,
+                Play(Card(rank, suit)) => Some((*rank, *suit)),
+                PlayEight(_, suit) => Some((Rank::Eight, *suit)),
+            })
+            .next()
+            .unwrap_or_else(|| {
+                // It's invalid to not have any cards in the discard pile
+                let Card(rank, suit) = self.discarded.iter().last().unwrap();
+                (*rank, *suit)
+            })
     }
 }
 
