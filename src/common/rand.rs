@@ -1,7 +1,7 @@
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct RngSeed(pub [u8; 32]);
 
 impl RngSeed {

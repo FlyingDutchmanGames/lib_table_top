@@ -70,12 +70,14 @@ impl GameType {
 
 use GameType::*;
 
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct GameHistory {
     game_type: GameType,
     seed: RngSeed,
     history: Vec<Action>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GameState {
     game_history: GameHistory,
     rng: ChaCha20Rng,
@@ -106,7 +108,7 @@ pub enum Action {
 
 use Action::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum ActionError {
     CantDrawWhenYouHavePlayableCards { player: Player, playable: Vec<Card> },
     PlayerDoesNotHaveCard { player: Player, card: Card },
@@ -153,8 +155,32 @@ impl GameState {
         }
     }
 
+    /// Gives the game history of the current game state, the game history is a minimal
+    /// representation of the game state useful for serializing and persisting.
+    /// ```
+    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, Player};
+    /// use lib_table_top::common::rand::RngSeed;
+    ///
+    /// # use lib_table_top::games::crazy_eights::ActionError;
+    /// // fn main() -> Result<(), ActionError> {
+    /// let game = GameState::new(TwoPlayer, RngSeed([0; 32]));
+    /// assert_eq!(game.game_history().game_state(), Ok(game));
+    /// // }
+    /// ```
     pub fn game_history(&self) -> &GameHistory {
         &self.game_history
+    }
+
+    /// Gives the next player up
+    /// ```
+    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, Player};
+    /// use lib_table_top::common::rand::RngSeed;
+    ///
+    /// let game = GameState::new(TwoPlayer, RngSeed([0; 32]));
+    /// assert_eq!(game.whose_turn(), Player(0));
+    /// ```
+    pub fn whose_turn(&self) -> Player {
+        self.game_history.whose_turn()
     }
 
     /// Returns the view accessible to a particular player, contains all the information needed to
@@ -290,7 +316,7 @@ impl GameState {
 }
 
 impl GameHistory {
-    pub fn new(game_type: GameType, seed: RngSeed) -> Self {
+    fn new(game_type: GameType, seed: RngSeed) -> Self {
         Self {
             game_type,
             seed,
@@ -298,45 +324,28 @@ impl GameHistory {
         }
     }
 
-    pub fn history(&self) -> impl Iterator<Item = (Player, &Action)> + '_ {
+    pub fn game_state(&self) -> Result<GameState, ActionError> {
+        let mut game_state = GameState::new(self.game_type, self.seed);
+
+        for (player, &action) in self.history() {
+            game_state.make_move((player, action))?
+        }
+
+        Ok(game_state)
+    }
+
+    fn history(&self) -> impl Iterator<Item = (Player, &Action)> + '_ {
         self.history
             .iter()
             .zip((0..self.game_type.number_of_players()).cycle())
             .map(|(action, player_num)| (Player(player_num), action))
     }
 
-    pub fn game_state(&self) -> Result<GameState, ActionError> {
-        let mut game_view = GameState::new(self.game_type, self.seed);
-
-        for (player, &action) in self.history() {
-            game_view.make_move((player, action))?
-        }
-
-        Ok(game_view)
-    }
-
-    /// Gives the next player up
-    /// ```
-    /// use lib_table_top::games::crazy_eights::{GameHistory, GameType::*, Player};
-    /// use lib_table_top::common::rand::RngSeed;
-    ///
-    /// let game = GameHistory::new(TwoPlayer, RngSeed([0; 32]));
-    /// assert_eq!(game.whose_turn(), Player(0));
-    /// ```
-    pub fn whose_turn(&self) -> Player {
+    fn whose_turn(&self) -> Player {
         Player((self.history.len() as u8) % self.game_type.number_of_players())
     }
 
-    /// Undo the last action taken and returns the action. If there are no previous actions this
-    /// function returns `None`
-    /// ```
-    /// use lib_table_top::games::crazy_eights::{GameHistory, GameType::*};
-    /// use lib_table_top::common::rand::RngSeed;
-    ///
-    /// let mut game = GameHistory::new(ThreePlayer, RngSeed([0; 32]));
-    /// assert_eq!(game.undo(), None);
-    /// ```
-    pub fn undo(&mut self) -> Option<(Player, Action)> {
+    fn undo(&mut self) -> Option<(Player, Action)> {
         let action = self.history.pop();
         action.map(|action| (self.whose_turn(), action))
     }
