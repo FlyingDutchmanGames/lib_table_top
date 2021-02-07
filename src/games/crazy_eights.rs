@@ -1,4 +1,5 @@
 use crate::rand::prelude::SliceRandom;
+use rand_chacha::ChaCha20Rng;
 use std::collections::HashMap;
 
 use crate::common::deck::card::{rank::Rank, suit::Suit, Card};
@@ -8,6 +9,7 @@ use crate::common::rand::RngSeed;
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct Player(pub u8);
 
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum GameType {
     TwoPlayer,
     ThreePlayer,
@@ -59,6 +61,34 @@ pub enum ActionError {
     CardCantBePlayed { card: Card, needed: (Rank, Suit) },
 }
 
+impl GameView {
+    fn new(mut rng: ChaCha20Rng, game_type: GameType) -> Self {
+        let mut deck: Vec<Card> = STANDARD_DECK.into();
+        deck.shuffle(&mut rng);
+        let mut deck = deck.into_iter();
+
+        let hands: HashMap<Player, Vec<Card>> = (0..game_type.number_of_players())
+            .map(|player| Player(player))
+            .map(|player| {
+                (
+                    player,
+                    (&mut deck)
+                        .take(game_type.number_of_cards_per_player() as usize)
+                        .collect(),
+                )
+            })
+            .collect();
+
+        let discard: Vec<Card> = (&mut deck).take(1).collect();
+
+        Self {
+            hands,
+            discard,
+            draw_pile: deck.collect(),
+        }
+    }
+}
+
 impl GameState {
     pub fn undo(&mut self) -> Option<(Player, Action)> {
         let action = self.history.pop();
@@ -83,26 +113,9 @@ impl GameState {
     }
 
     pub fn game_view(&self) -> GameView {
-        let mut rng = self.seed.into_rng();
-        let mut deck: Vec<Card> = STANDARD_DECK.into();
-        deck.shuffle(&mut rng);
-        let mut deck = deck.into_iter();
-
-        let hands = GameState::deal(
-            &mut deck,
-            self.game_type.number_of_players(),
-            self.game_type.number_of_cards_per_player(),
-        );
-
-        let discard: Vec<Card> = (&mut deck).take(1).collect();
-
-        let gv = GameView {
-            hands,
-            discard,
-            draw_pile: deck.collect(),
-        };
-
-        gv
+        let rng = self.seed.into_rng();
+        let game_view = GameView::new(rng, self.game_type);
+        game_view
     }
 
     /// Gives the next player up
@@ -115,16 +128,5 @@ impl GameState {
     /// ```
     pub fn whose_turn(&self) -> Player {
         Player((self.history.len() as u8) % self.game_type.number_of_players())
-    }
-
-    fn deal(
-        deck: &mut dyn Iterator<Item = Card>,
-        number_of_players: u8,
-        number_of_cards: u8,
-    ) -> HashMap<Player, Vec<Card>> {
-        (0..number_of_players)
-            .map(|player| Player(player))
-            .map(|player| (player, deck.take(number_of_cards as usize).collect()))
-            .collect()
     }
 }
