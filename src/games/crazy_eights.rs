@@ -299,10 +299,10 @@ impl GameState {
     /// let game = GameState::new(ThreePlayer, RngSeed([0; 32]));
     /// assert_eq!(
     ///   game.player_view(game.whose_turn()),
-    ///   game.player_view_for_current_player()
+    ///   game.current_player_view()
     /// );
     /// ```
-    pub fn player_view_for_current_player(&self) -> PlayerView<'_> {
+    pub fn current_player_view(&self) -> PlayerView<'_> {
         self.player_view(self.whose_turn())
     }
 
@@ -377,7 +377,7 @@ impl GameState {
     ///
     /// // You can play a valid action
     /// let mut game = GameState::new(ThreePlayer, RngSeed([1; 32]));
-    /// let action = game.player_view_for_current_player().valid_actions().pop().unwrap();
+    /// let action = game.current_player_view().valid_actions().pop().unwrap();
     /// assert!(game.make_move((Player(0), action)).is_ok());
     ///
     /// // Trying to play when it's not your turn is an error
@@ -411,6 +411,16 @@ impl GameState {
     /// assert_eq!(
     ///   game.make_move((Player(1), Play(Card(Jack, Spades)))),
     ///   Err(PlayerDoesNotHaveCard { player: Player(1), card: Card(Jack, Spades) })
+    /// );
+    ///
+    /// // Trying to play a card you have but doesn't follow suit is an error
+    /// assert_eq!(
+    ///   game.make_move((Player(1), Play(Card(Ten, Clubs)))),
+    ///   Err(CardCantBePlayed {
+    ///     attempted_card: Card(Ten, Clubs),
+    ///     top_card: Card(Nine, Spades),
+    ///     current_suit: Spades
+    ///   })
     /// );
     /// ```
     pub fn make_move(&mut self, (player, action): (Player, Action)) -> Result<(), ActionError> {
