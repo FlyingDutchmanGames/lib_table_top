@@ -85,7 +85,7 @@ pub struct GameState {
     hands: HashMap<Player, Vec<Card>>,
     draw_pile: Vec<Card>,
     top_card: Card,
-    suit: Suit,
+    current_suit: Suit,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -179,9 +179,23 @@ use Action::*;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum ActionError {
-    CantDrawWhenYouHavePlayableCards { player: Player, playable: Vec<Card> },
-    PlayerDoesNotHaveCard { player: Player, card: Card },
-    CardCantBePlayed { card: Card, top_card: Card },
+    NotPlayerTurn {
+        attempted_player: Player,
+        correct_player: Player,
+    },
+    CantDrawWhenYouHavePlayableCards {
+        player: Player,
+        playable: Vec<Card>,
+    },
+    PlayerDoesNotHaveCard {
+        player: Player,
+        card: Card,
+    },
+    CardCantBePlayed {
+        attempted_card: Card,
+        top_card: Card,
+        current_suit: Suit,
+    },
 }
 
 use ActionError::*;
@@ -227,7 +241,7 @@ impl GameState {
             draw_pile,
             hands,
             top_card,
-            suit: top_card.1,
+            current_suit: top_card.1,
             discarded: vec![],
         }
     }
@@ -336,7 +350,7 @@ impl GameState {
             .collect();
 
         PlayerView {
-            current_suit: &self.suit,
+            current_suit: &self.current_suit,
             discarded: self.discarded.as_slice(),
             draw_pile_remaining: self.draw_pile.len() as u8,
             hand,
@@ -349,12 +363,46 @@ impl GameState {
 
     /// Make a move on the current game, returns an error if it's illegal
     /// ```
-    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, Player, PlayerView};
+    /// use lib_table_top::games::crazy_eights::{
+    ///   GameState, GameType::*, Player, PlayerView, Action::*, ActionError::*
+    /// };
     /// use lib_table_top::common::rand::RngSeed;
+    /// use lib_table_top::common::deck::card::{Card, suit::Suit::*, rank::Rank::*};
     ///
-    /// let game = GameState::new(ThreePlayer, RngSeed([0; 32]));
+    /// // You can play a valid action
+    /// let mut game = GameState::new(ThreePlayer, RngSeed([1; 32]));
+    /// let action = game.player_view_for_current_player().valid_actions().pop().unwrap();
+    /// assert!(game.make_move((Player(0), action)).is_ok());
+    ///
+    /// // Trying to play when it's not your turn is an error
+    /// assert_eq!(
+    ///   game.make_move((Player(2), Draw)),
+    ///   Err(NotPlayerTurn { attempted_player: Player(2), correct_player: Player(1) })
+    /// );
+    ///
+    /// // Trying to draw a card when you have a valid move isn't legal
+    /// let potential_actions = game.player_view_for_current_player().valid_actions();
+    /// assert_eq!(potential_actions, vec![Play(Card(Five, Spades))]);
+    /// assert_eq!(
+    ///   game.make_move((Player(1), Draw)),
+    ///   Err(CantDrawWhenYouHavePlayableCards { player: Player(1), playable: vec![Card(Five, Spades)] })
+    /// );
+    ///
+    /// // Trying to play a card you don't have is an error
+    /// assert_eq!(
+    ///   game.make_move((Player(1), Play(Card(Jack, Spades)))),
+    ///   Err(PlayerDoesNotHaveCard { player: Player(1), card: Card(Jack, Spades) })
+    /// );
     /// ```
     pub fn make_move(&mut self, (player, action): (Player, Action)) -> Result<(), ActionError> {
+        let whose_turn = self.whose_turn();
+        if player != whose_turn {
+            return Err(NotPlayerTurn {
+                attempted_player: player,
+                correct_player: whose_turn,
+            });
+        }
+
         match action {
             Draw => {
                 let playable: Vec<Card> = self
@@ -380,11 +428,11 @@ impl GameState {
             }
             Play(card) => {
                 self.play_card(player, card)?;
-                self.suit = card.1;
+                self.current_suit = card.1;
             }
             PlayEight(card, suit) => {
                 self.play_card(player, card)?;
-                self.suit = suit;
+                self.current_suit = suit;
             }
         }
 
@@ -406,8 +454,9 @@ impl GameState {
 
         if !self.valid_to_play(&card) {
             return Err(CardCantBePlayed {
-                card,
+                attempted_card: card,
                 top_card: self.top_card,
+                current_suit: self.current_suit,
             });
         }
 
@@ -423,7 +472,7 @@ impl GameState {
 
     fn valid_to_play(&self, Card(rank, suit): &Card) -> bool {
         let Card(current_rank, _suit) = self.top_card;
-        rank == &Rank::Eight || rank == &current_rank || suit == &self.suit
+        rank == &Rank::Eight || rank == &current_rank || suit == &self.current_suit
     }
 }
 
