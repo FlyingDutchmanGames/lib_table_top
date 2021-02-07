@@ -271,6 +271,21 @@ impl GameState {
         self.game_history.whose_turn()
     }
 
+    /// Returns the player view for the current player
+    /// ```
+    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, PlayerView};
+    /// use lib_table_top::common::rand::RngSeed;
+    ///
+    /// let game = GameState::new(ThreePlayer, RngSeed([0; 32]));
+    /// assert_eq!(
+    ///   game.player_view(game.whose_turn()),
+    ///   game.player_view_for_current_player()
+    /// );
+    /// ```
+    pub fn player_view_for_current_player(&self) -> PlayerView<'_> {
+        self.player_view(self.whose_turn())
+    }
+
     /// Returns the view accessible to a particular player, contains all the information needed to
     /// show the game to a particular player and have them decide on their action
     /// ```
@@ -334,7 +349,10 @@ impl GameState {
 
     /// Make a move on the current game, returns an error if it's illegal
     /// ```
+    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, Player, PlayerView};
+    /// use lib_table_top::common::rand::RngSeed;
     ///
+    /// let game = GameState::new(ThreePlayer, RngSeed([0; 32]));
     /// ```
     pub fn make_move(&mut self, (player, action): (Player, Action)) -> Result<(), ActionError> {
         match action {
