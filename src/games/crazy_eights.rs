@@ -43,6 +43,7 @@ pub struct GameState {
 }
 
 pub struct GameView {
+    game_type: GameType,
     discarded: Vec<Card>,
     hands: HashMap<Player, Vec<Card>>,
     draw_pile: Vec<Card>,
@@ -59,16 +60,18 @@ pub enum Action {
 use Action::*;
 
 pub enum ActionError {
-    CantDrawWhenYouHavePlayableCards,
+    CantDrawWhenYouHavePlayableCards { player: Player, playable: Vec<Card> },
     PlayerDoesNotHaveCard { player: Player, card: Card },
     CardCantBePlayed { card: Card, needed: (Rank, Suit) },
 }
 
+use ActionError::*;
+
 impl GameView {
     pub fn new(mut rng: ChaCha20Rng, game_type: GameType) -> Self {
-        let mut deck: Vec<Card> = STANDARD_DECK.into();
-        deck.shuffle(&mut rng);
-        let mut deck = deck.into_iter();
+        let mut cards: Vec<Card> = STANDARD_DECK.into();
+        cards.shuffle(&mut rng);
+        let mut deck = cards.into_iter();
 
         let hands: HashMap<Player, Vec<Card>> = (0..game_type.number_of_players())
             .map(|player| Player(player))
@@ -83,17 +86,40 @@ impl GameView {
             .collect();
 
         let discarded: Vec<Card> = (&mut deck).take(1).collect();
+        let draw_pile = deck.collect();
 
         Self {
-            hands,
             discarded,
+            draw_pile,
+            game_type,
+            hands,
             history: vec![],
-            draw_pile: deck.collect(),
         }
     }
 
-    pub fn make_move(&mut self, (_player, _action): (Player, Action)) -> Result<(), ActionError> {
-        todo!()
+    pub fn make_move(&mut self, (player, action): (Player, Action)) -> Result<(), ActionError> {
+        let (current_rank, current_suit) = self.current_rank_and_suit();
+        let player_hand: &mut Vec<Card> = &mut self.hands.entry(player).or_insert_with(Vec::new);
+
+        match action {
+            Draw => {
+                let playable: Vec<Card> = player_hand
+                    .iter()
+                    .filter(|Card(rank, suit)| {
+                        rank == &Rank::Eight || rank == &current_rank || suit == &current_suit
+                    })
+                    .copied()
+                    .collect();
+
+                if !playable.is_empty() {
+                    return Err(CantDrawWhenYouHavePlayableCards { player, playable });
+                }
+            }
+            Play(_card) => (),
+            PlayEight(_card, _suit) => (),
+        }
+
+        Ok(self.history.push(action))
     }
 
     pub fn current_rank_and_suit(&self) -> (Rank, Suit) {
