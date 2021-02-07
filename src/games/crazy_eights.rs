@@ -90,13 +90,23 @@ pub struct GameState {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlayerView<'a> {
+    /// The player that this player view is related to, it should only be shown to this player
     pub player: Player,
+    /// The player whose turn it is, may or may not be the same as the player this view is for. If
+    /// it's not the view for the player whose turn it is, that player can't make a move
     pub whose_turn: Player,
+    /// The cards in this player's hand
     pub hand: &'a [Card],
+    /// The discard pile, without the "top_card" that is currently being played on
     pub discarded: &'a [Card],
+    /// The top card of the discard pile, this is the card that is next to be "played on"
     pub top_card: &'a Card,
+    /// The current suit to play, may or may not be the same as the suit of the top card, due to
+    /// eights being played
     pub current_suit: &'a Suit,
+    /// Counts of the number of cards in each player's hand
     pub player_card_count: HashMap<Player, u8>,
+    /// The number of cards in the draw pile
     pub draw_pile_remaining: u8,
 }
 
@@ -156,8 +166,12 @@ impl<'a> PlayerView<'a> {
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Action {
+    /// Draw a card from the draw pile. Reshuffles the deck if there are no cards remaining in the
+    /// draw pile. If there are no cards in the draw pile or discard pile, this is a no-op.
     Draw,
+    /// Play a card from your hand
     Play(Card),
+    /// Play and eight, and select the next suit
     PlayEight(Card, Suit),
 }
 
@@ -173,6 +187,14 @@ pub enum ActionError {
 use ActionError::*;
 
 impl GameState {
+    /// Creates a new game from a game type and seed
+    /// ```
+    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, Player};
+    /// use lib_table_top::common::rand::RngSeed;
+    ///
+    /// let game = GameState::new(ThreePlayer, RngSeed([0; 32]));
+    /// assert_eq!(game.whose_turn(), Player(0));
+    /// ```
     pub fn new(game_type: GameType, seed: RngSeed) -> Self {
         let mut rng = seed.into_rng();
         let mut cards: Vec<Card> = STANDARD_DECK.into();
@@ -180,7 +202,7 @@ impl GameState {
         let mut deck = cards.into_iter();
 
         let hands: HashMap<Player, Vec<Card>> = (0..game_type.number_of_players())
-            .map(|player| Player(player))
+            .map(Player)
             .map(|player| {
                 (
                     player,
@@ -216,14 +238,25 @@ impl GameState {
     /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, Player};
     /// use lib_table_top::common::rand::RngSeed;
     ///
-    /// # use lib_table_top::games::crazy_eights::ActionError;
-    /// // fn main() -> Result<(), ActionError> {
     /// let game = GameState::new(TwoPlayer, RngSeed([0; 32]));
     /// assert_eq!(game.game_history().game_state(), Ok(game));
-    /// // }
     /// ```
     pub fn game_history(&self) -> &GameHistory {
         &self.game_history
+    }
+
+    /// Iterator over the actions in a game
+    /// ```
+    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*};
+    /// use lib_table_top::common::rand::RngSeed;
+    /// use itertools::equal;
+    ///
+    /// // A new game has an empty history
+    /// let game = GameState::new(TwoPlayer, RngSeed([0; 32]));
+    /// assert!(equal(game.history(), vec![]));
+    /// ```
+    pub fn history(&self) -> impl Iterator<Item = (Player, &Action)> + '_ {
+        self.game_history.history()
     }
 
     /// Gives the next player up
@@ -299,6 +332,10 @@ impl GameState {
         }
     }
 
+    /// Make a move on the current game, returns an error if it's illegal
+    /// ```
+    ///
+    /// ```
     pub fn make_move(&mut self, (player, action): (Player, Action)) -> Result<(), ActionError> {
         match action {
             Draw => {
