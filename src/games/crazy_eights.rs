@@ -43,6 +43,7 @@ pub struct GameState {
 }
 
 pub struct GameView {
+    rng: ChaCha20Rng,
     game_type: GameType,
     discarded: Vec<Card>,
     hands: HashMap<Player, Vec<Card>>,
@@ -89,6 +90,7 @@ impl GameView {
         let draw_pile = deck.collect();
 
         Self {
+            rng,
             discarded,
             draw_pile,
             game_type,
@@ -114,9 +116,24 @@ impl GameView {
                 if !playable.is_empty() {
                     return Err(CantDrawWhenYouHavePlayableCards { player, playable });
                 }
+
+                if self.draw_pile.is_empty() {
+                    Self::reshuffle(&mut self.rng, &mut self.draw_pile, &mut self.discarded);
+                }
+
+                let drawn = self.draw_pile.pop();
+                player_hand.extend(drawn.iter())
             }
-            Play(_card) => (),
-            PlayEight(_card, _suit) => (),
+            Play(card) => {
+                if !player_hand.contains(&card) {
+                    return Err(PlayerDoesNotHaveCard { player, card });
+                }
+            }
+            PlayEight(card, _suit) => {
+                if !player_hand.contains(&card) {
+                    return Err(PlayerDoesNotHaveCard { player, card });
+                }
+            }
         }
 
         Ok(self.history.push(action))
@@ -137,6 +154,13 @@ impl GameView {
                 let Card(rank, suit) = self.discarded.iter().last().unwrap();
                 (*rank, *suit)
             })
+    }
+
+    fn reshuffle(rng: &mut ChaCha20Rng, draw_pile: &mut Vec<Card>, discarded: &mut Vec<Card>) {
+        let top_card = discarded.pop();
+        draw_pile.append(discarded);
+        draw_pile.shuffle(rng);
+        discarded.extend(top_card.iter());
     }
 }
 
