@@ -48,6 +48,24 @@ impl GameType {
             FourPlayer => 5,
         }
     }
+
+    /// An iterator of players for a game type. (Players are 0 indexed)
+    /// ```
+    /// use lib_table_top::games::crazy_eights::{GameType::*, Player};
+    ///
+    /// assert_eq!(
+    ///   TwoPlayer.players().collect::<Vec<Player>>(),
+    ///   vec![Player(0), Player(1)]
+    /// );
+    ///
+    /// assert_eq!(
+    ///   FourPlayer.players().collect::<Vec<Player>>(),
+    ///   vec![Player(0), Player(1), Player(2), Player(3)]
+    /// );
+    /// ```
+    pub fn players(&self) -> impl Iterator<Item = Player> + Clone {
+        (0..self.number_of_players()).map(|num| Player(num))
+    }
 }
 
 use GameType::*;
@@ -141,18 +159,20 @@ impl GameView {
                     .entry(player)
                     .or_insert(vec![])
                     .extend(self.draw_pile.pop().iter());
+
+                Ok(())
             }
             Play(card) => {
                 self.play_card(player, card)?;
                 self.suit = card.1;
+                Ok(())
             }
             PlayEight(card, suit) => {
                 self.play_card(player, card)?;
                 self.suit = suit;
+                Ok(())
             }
         }
-
-        Ok(())
     }
 
     pub fn player_hand(&self, player: Player) -> &[Card] {
@@ -214,10 +234,15 @@ impl GameState {
             .map(|(action, player_num)| (Player(player_num), action))
     }
 
-    pub fn game_view(&self) -> GameView {
+    pub fn game_view(&self) -> Result<GameView, ActionError> {
         let rng = self.seed.into_rng();
-        let game_view = GameView::new(rng, self.game_type);
-        game_view
+        let mut game_view = GameView::new(rng, self.game_type);
+
+        for (player, &action) in self.history() {
+            game_view.make_move((player, action))?
+        }
+
+        Ok(game_view)
     }
 
     /// Gives the next player up
