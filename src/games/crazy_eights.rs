@@ -94,6 +94,7 @@ pub struct PlayerView<'a> {
     pub top_card: &'a Card,
     pub current_suit: &'a Suit,
     pub player_card_count: HashMap<Player, u8>,
+    pub draw_pile_remaining: u8,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -161,9 +162,11 @@ impl GameView {
     /// let game = GameState::new(ThreePlayer, RngSeed([0; 32]));
     /// let game_view = game.game_view()?;
     /// let player_view = game_view.player_view(Player(0));
+    ///
     /// assert_eq!(player_view, PlayerView {
     ///   player: Player(0),
     ///   discarded: &[],
+    ///   draw_pile_remaining: 36,
     ///   hand: &[
     ///     Card(Ace, Diamonds),
     ///     Card(Five, Spades),
@@ -198,6 +201,7 @@ impl GameView {
             player,
             hand,
             player_card_count,
+            draw_pile_remaining: self.draw_pile.len() as u8,
             discarded: self.discarded.as_slice(),
             top_card: &self.top_card,
             current_suit: &self.suit,
@@ -243,7 +247,7 @@ impl GameView {
         }
     }
 
-    pub fn player_hand(&self, player: Player) -> &[Card] {
+    fn player_hand(&self, player: Player) -> &[Card] {
         &self
             .hands
             .get(&player)
@@ -280,6 +284,15 @@ impl GameView {
 }
 
 impl GameState {
+    /// Undo the last action taken and returns the action. If there are no previous actions this
+    /// function returns `None`
+    /// ```
+    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*};
+    /// use lib_table_top::common::rand::RngSeed;
+    ///
+    /// let mut game = GameState::new(ThreePlayer, RngSeed([0; 32]));
+    /// assert_eq!(game.undo(), None);
+    /// ```
     pub fn undo(&mut self) -> Option<(Player, Action)> {
         let action = self.history.pop();
         action.map(|action| (self.whose_turn(), action))
