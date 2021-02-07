@@ -86,13 +86,14 @@ pub struct GameView {
     suit: Suit,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlayerView<'a> {
-    player: Player,
-    hand: &'a [Card],
-    discarded: &'a [Card],
-    top_card: &'a Card,
-    suit: &'a Suit,
-    player_card_count: HashMap<Player, u8>,
+    pub player: Player,
+    pub hand: &'a [Card],
+    pub discarded: &'a [Card],
+    pub top_card: &'a Card,
+    pub current_suit: &'a Suit,
+    pub player_card_count: HashMap<Player, u8>,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -104,6 +105,7 @@ pub enum Action {
 
 use Action::*;
 
+#[derive(Clone, Debug)]
 pub enum ActionError {
     CantDrawWhenYouHavePlayableCards { player: Player, playable: Vec<Card> },
     PlayerDoesNotHaveCard { player: Player, card: Card },
@@ -145,6 +147,41 @@ impl GameView {
         }
     }
 
+    /// Returns the view accessible to a particular player, contains all the information needed to
+    /// show the game to a particular player and have them decide on their action
+    /// ```
+    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, Player, PlayerView};
+    ///
+    /// use std::collections::HashMap;
+    /// use lib_table_top::common::rand::RngSeed;
+    /// use lib_table_top::common::deck::card::{Card, suit::Suit::*, rank::Rank::*};
+    ///
+    /// # use lib_table_top::games::crazy_eights::ActionError;
+    /// # fn main() -> Result<(), ActionError> {
+    /// let game = GameState::new(ThreePlayer, RngSeed([0; 32]));
+    /// let game_view = game.game_view()?;
+    /// let player_view = game_view.player_view(Player(0));
+    /// assert_eq!(player_view, PlayerView {
+    ///   player: Player(0),
+    ///   discarded: &[],
+    ///   hand: &[
+    ///     Card(Ace, Diamonds),
+    ///     Card(Five, Spades),
+    ///     Card(Two, Hearts),
+    ///     Card(Jack, Diamonds),
+    ///     Card(King, Spades)
+    ///   ],
+    ///   top_card: &Card(Four, Diamonds),
+    ///   current_suit: &Diamonds,
+    ///   player_card_count: vec![
+    ///     (Player(0), 5u8),
+    ///     (Player(1), 5u8),
+    ///     (Player(2), 5u8)
+    ///   ].iter().copied().collect(),
+    /// });
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn player_view(&self, player: Player) -> PlayerView<'_> {
         let hand: &[Card] = self
             .hands
@@ -163,7 +200,7 @@ impl GameView {
             player_card_count,
             discarded: self.discarded.as_slice(),
             top_card: &self.top_card,
-            suit: &self.suit,
+            current_suit: &self.suit,
         }
     }
 
