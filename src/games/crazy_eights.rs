@@ -48,7 +48,8 @@ pub struct GameView {
     discarded: Vec<Card>,
     hands: HashMap<Player, Vec<Card>>,
     draw_pile: Vec<Card>,
-    history: Vec<Action>,
+    top_card: Card,
+    suit: Suit,
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -63,7 +64,7 @@ use Action::*;
 pub enum ActionError {
     CantDrawWhenYouHavePlayableCards { player: Player, playable: Vec<Card> },
     PlayerDoesNotHaveCard { player: Player, card: Card },
-    CardCantBePlayed { card: Card, needed: (Rank, Suit) },
+    CardCantBePlayed { card: Card, top_card: Card },
 }
 
 use ActionError::*;
@@ -86,30 +87,28 @@ impl GameView {
             })
             .collect();
 
-        let discarded: Vec<Card> = (&mut deck).take(1).collect();
+        // Can't fail because deck is 52 cards
+        let top_card = deck.next().unwrap();
         let draw_pile = deck.collect();
 
         Self {
             rng,
-            discarded,
             draw_pile,
             game_type,
             hands,
-            history: vec![],
+            top_card,
+            suit: top_card.1,
+            discarded: vec![],
         }
     }
 
     pub fn make_move(&mut self, (player, action): (Player, Action)) -> Result<(), ActionError> {
-        let (current_rank, current_suit) = self.current_rank_and_suit();
-        let player_hand: &mut Vec<Card> = &mut self.hands.entry(player).or_insert_with(Vec::new);
-
         match action {
             Draw => {
-                let playable: Vec<Card> = player_hand
+                let playable: Vec<Card> = self
+                    .player_hand(player)
                     .iter()
-                    .filter(|Card(rank, suit)| {
-                        rank == &Rank::Eight || rank == &current_rank || suit == &current_suit
-                    })
+                    .filter(|card| self.valid_to_play(card))
                     .copied()
                     .collect();
 
@@ -118,49 +117,61 @@ impl GameView {
                 }
 
                 if self.draw_pile.is_empty() {
-                    Self::reshuffle(&mut self.rng, &mut self.draw_pile, &mut self.discarded);
+                    self.draw_pile.append(&mut self.discarded);
+                    self.draw_pile.shuffle(&mut self.rng);
                 }
 
-                let drawn = self.draw_pile.pop();
-                player_hand.extend(drawn.iter())
+                self.hands
+                    .entry(player)
+                    .or_insert(vec![])
+                    .extend(self.draw_pile.pop().iter());
             }
             Play(card) => {
-                if !player_hand.contains(&card) {
-                    return Err(PlayerDoesNotHaveCard { player, card });
-                }
+                self.play_card(player, card)?;
+                self.suit = card.1;
             }
-            PlayEight(card, _suit) => {
-                if !player_hand.contains(&card) {
-                    return Err(PlayerDoesNotHaveCard { player, card });
-                }
+            PlayEight(card, suit) => {
+                self.play_card(player, card)?;
+                self.suit = suit;
             }
         }
 
-        Ok(self.history.push(action))
+        Ok(())
     }
 
-    pub fn current_rank_and_suit(&self) -> (Rank, Suit) {
-        self.history
-            .iter()
-            .rev()
-            .filter_map(|action| match action {
-                Draw => None,
-                Play(Card(rank, suit)) => Some((*rank, *suit)),
-                PlayEight(_, suit) => Some((Rank::Eight, *suit)),
-            })
-            .next()
-            .unwrap_or_else(|| {
-                // It's invalid to not have any cards in the discard pile
-                let Card(rank, suit) = self.discarded.iter().last().unwrap();
-                (*rank, *suit)
-            })
+    pub fn player_hand(&self, player: Player) -> &[Card] {
+        &self
+            .hands
+            .get(&player)
+            .map(|hand| hand.as_slice())
+            .unwrap_or(&[])
     }
 
-    fn reshuffle(rng: &mut ChaCha20Rng, draw_pile: &mut Vec<Card>, discarded: &mut Vec<Card>) {
-        let top_card = discarded.pop();
-        draw_pile.append(discarded);
-        draw_pile.shuffle(rng);
-        discarded.extend(top_card.iter());
+    fn play_card(&mut self, player: Player, card: Card) -> Result<(), ActionError> {
+        if !self.player_hand(player).contains(&card) {
+            return Err(PlayerDoesNotHaveCard { player, card });
+        }
+
+        if !self.valid_to_play(&card) {
+            return Err(CardCantBePlayed {
+                card,
+                top_card: self.top_card,
+            });
+        }
+
+        let old_top_card = std::mem::replace(&mut self.top_card, card);
+        self.discarded.push(old_top_card);
+        self.hands
+            .entry(player)
+            .or_insert(vec![])
+            .retain(|c| c != &card);
+
+        Ok(())
+    }
+
+    fn valid_to_play(&self, Card(rank, suit): &Card) -> bool {
+        let Card(current_rank, _suit) = self.top_card;
+        rank == &Rank::Eight || rank == &current_rank || suit == &self.suit
     }
 }
 
