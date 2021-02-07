@@ -17,6 +17,14 @@ pub enum GameType {
 }
 
 impl GameType {
+    /// Returns the number of players for the current game type
+    /// ```
+    /// use lib_table_top::games::crazy_eights::GameType::*;
+    ///
+    /// assert_eq!(TwoPlayer.number_of_players(), 2);
+    /// assert_eq!(ThreePlayer.number_of_players(), 3);
+    /// assert_eq!(FourPlayer.number_of_players(), 4);
+    /// ```
     pub fn number_of_players(&self) -> u8 {
         match self {
             TwoPlayer => 2,
@@ -25,7 +33,15 @@ impl GameType {
         }
     }
 
-    pub fn number_of_cards_per_player(&self) -> u8 {
+    /// Returns the starting number of cards per player
+    /// ```
+    /// use lib_table_top::games::crazy_eights::GameType::*;
+    ///
+    /// assert_eq!(TwoPlayer.starting_number_of_cards_per_player(), 7);
+    /// assert_eq!(ThreePlayer.starting_number_of_cards_per_player(), 5);
+    /// assert_eq!(FourPlayer.starting_number_of_cards_per_player(), 5);
+    /// ```
+    pub fn starting_number_of_cards_per_player(&self) -> u8 {
         match self {
             TwoPlayer => 7,
             ThreePlayer => 5,
@@ -81,7 +97,7 @@ impl GameView {
                 (
                     player,
                     (&mut deck)
-                        .take(game_type.number_of_cards_per_player() as usize)
+                        .take(game_type.starting_number_of_cards_per_player() as usize)
                         .collect(),
                 )
             })
