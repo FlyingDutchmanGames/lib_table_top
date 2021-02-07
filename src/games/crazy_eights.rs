@@ -86,6 +86,15 @@ pub struct GameView {
     suit: Suit,
 }
 
+pub struct PlayerView<'a> {
+    player: Player,
+    hand: &'a [Card],
+    discarded: &'a [Card],
+    top_card: &'a Card,
+    suit: &'a Suit,
+    player_card_count: HashMap<Player, u8>,
+}
+
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Action {
     Draw,
@@ -104,7 +113,7 @@ pub enum ActionError {
 use ActionError::*;
 
 impl GameView {
-    pub fn new(mut rng: ChaCha20Rng, game_type: GameType) -> Self {
+    fn new(mut rng: ChaCha20Rng, game_type: GameType) -> Self {
         let mut cards: Vec<Card> = STANDARD_DECK.into();
         cards.shuffle(&mut rng);
         let mut deck = cards.into_iter();
@@ -133,6 +142,28 @@ impl GameView {
             top_card,
             suit: top_card.1,
             discarded: vec![],
+        }
+    }
+
+    pub fn player_view(&self, player: Player) -> PlayerView<'_> {
+        let hand: &[Card] = self
+            .hands
+            .get(&player)
+            .map(|hand| hand.as_slice())
+            .unwrap_or(&[]);
+        let player_card_count: HashMap<Player, u8> = self
+            .hands
+            .iter()
+            .map(|(player, cards)| (*player, cards.len() as u8))
+            .collect();
+
+        PlayerView {
+            player,
+            hand,
+            player_card_count,
+            discarded: self.discarded.as_slice(),
+            top_card: &self.top_card,
+            suit: &self.suit,
         }
     }
 
