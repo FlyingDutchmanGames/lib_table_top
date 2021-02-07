@@ -91,12 +91,67 @@ pub struct GameState {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlayerView<'a> {
     pub player: Player,
+    pub whose_turn: Player,
     pub hand: &'a [Card],
     pub discarded: &'a [Card],
     pub top_card: &'a Card,
     pub current_suit: &'a Suit,
     pub player_card_count: HashMap<Player, u8>,
     pub draw_pile_remaining: u8,
+}
+
+impl<'a> PlayerView<'a> {
+    /// Returns the valid actions for a player. Player views are specific to a turn and player.
+    /// There are no valid actions if it's not that player's turn
+    /// ```
+    /// use lib_table_top::common::deck::card::{rank::Rank::*, suit::Suit::*, Card};
+    /// use lib_table_top::games::crazy_eights::{Action::*, GameState, GameType::*, Player};
+    /// use lib_table_top::common::rand::RngSeed;
+    ///
+    /// let game = GameState::new(TwoPlayer, RngSeed([1; 32]));
+    ///
+    /// // If it's not that player's turn the valid actions are empty
+    /// let p1 = Player(1);
+    /// assert!(game.whose_turn() != p1);
+    /// assert_eq!(game.player_view(p1).valid_actions(), vec![]);
+    ///
+    /// // The player who's turn it is has actions to take
+    /// let p0 = Player(0);
+    /// assert!(game.whose_turn() == p0);
+    /// assert_eq!(game.player_view(p0).valid_actions(), vec![
+    ///   Play(Card(Nine, Clubs)),
+    ///   Play(Card(Seven, Clubs))
+    /// ]);
+    /// ```
+    pub fn valid_actions(&self) -> Vec<Action> {
+        if self.whose_turn == self.player {
+            let playable: Vec<Action> = self
+                .hand
+                .iter()
+                .flat_map(|card| match card {
+                    Card(Rank::Eight, suit) => Suit::ALL
+                        .iter()
+                        .cloned()
+                        .map(move |s| PlayEight(Card(Rank::Eight, *suit), s))
+                        .collect(),
+                    Card(rank, suit) if rank == &self.top_card.0 || suit == self.current_suit => {
+                        vec![Play(Card(*rank, *suit))]
+                    }
+                    Card(_, _) => {
+                        vec![]
+                    }
+                })
+                .collect();
+
+            if playable.is_empty() {
+                vec![Draw]
+            } else {
+                playable
+            }
+        } else {
+            vec![]
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -199,6 +254,7 @@ impl GameState {
     ///
     /// assert_eq!(player_view, PlayerView {
     ///   player: Player(0),
+    ///   whose_turn: Player(0),
     ///   discarded: &[],
     ///   draw_pile_remaining: 36,
     ///   hand: &[
@@ -232,13 +288,14 @@ impl GameState {
             .collect();
 
         PlayerView {
-            player,
-            hand,
-            player_card_count,
-            draw_pile_remaining: self.draw_pile.len() as u8,
-            discarded: self.discarded.as_slice(),
-            top_card: &self.top_card,
             current_suit: &self.suit,
+            discarded: self.discarded.as_slice(),
+            draw_pile_remaining: self.draw_pile.len() as u8,
+            hand,
+            player,
+            player_card_count,
+            top_card: &self.top_card,
+            whose_turn: self.game_history.whose_turn(),
         }
     }
 
