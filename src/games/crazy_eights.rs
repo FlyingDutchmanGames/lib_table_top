@@ -77,8 +77,8 @@ pub struct GameHistory {
 }
 
 pub struct GameState {
+    game_history: GameHistory,
     rng: ChaCha20Rng,
-    game_type: GameType,
     discarded: Vec<Card>,
     hands: HashMap<Player, Vec<Card>>,
     draw_pile: Vec<Card>,
@@ -116,7 +116,8 @@ pub enum ActionError {
 use ActionError::*;
 
 impl GameState {
-    fn new(mut rng: ChaCha20Rng, game_type: GameType) -> Self {
+    pub fn new(game_type: GameType, seed: RngSeed) -> Self {
+        let mut rng = seed.into_rng();
         let mut cards: Vec<Card> = STANDARD_DECK.into();
         cards.shuffle(&mut rng);
         let mut deck = cards.into_iter();
@@ -138,14 +139,22 @@ impl GameState {
         let draw_pile = deck.collect();
 
         Self {
+            game_history: GameHistory {
+                seed,
+                game_type,
+                history: Vec::new(),
+            },
             rng,
             draw_pile,
-            game_type,
             hands,
             top_card,
             suit: top_card.1,
             discarded: vec![],
         }
+    }
+
+    pub fn game_history(&self) -> &GameHistory {
+        &self.game_history
     }
 
     /// Returns the view accessible to a particular player, contains all the information needed to
@@ -160,8 +169,7 @@ impl GameState {
     /// # use lib_table_top::games::crazy_eights::ActionError;
     /// # fn main() -> Result<(), ActionError> {
     /// let game = GameState::new(ThreePlayer, RngSeed([0; 32]));
-    /// let game_view = game.game_view()?;
-    /// let player_view = game_view.player_view(Player(0));
+    /// let player_view = game.player_view(Player(0));
     ///
     /// assert_eq!(player_view, PlayerView {
     ///   player: Player(0),
@@ -231,20 +239,18 @@ impl GameState {
                     .entry(player)
                     .or_insert(vec![])
                     .extend(self.draw_pile.pop().iter());
-
-                Ok(())
             }
             Play(card) => {
                 self.play_card(player, card)?;
                 self.suit = card.1;
-                Ok(())
             }
             PlayEight(card, suit) => {
                 self.play_card(player, card)?;
                 self.suit = suit;
-                Ok(())
             }
         }
+
+        Ok(self.game_history.history.push(action))
     }
 
     fn player_hand(&self, player: Player) -> &[Card] {
@@ -300,8 +306,7 @@ impl GameHistory {
     }
 
     pub fn game_state(&self) -> Result<GameState, ActionError> {
-        let rng = self.seed.into_rng();
-        let mut game_view = GameState::new(rng, self.game_type);
+        let mut game_view = GameState::new(self.game_type, self.seed);
 
         for (player, &action) in self.history() {
             game_view.make_move((player, action))?
@@ -312,10 +317,10 @@ impl GameHistory {
 
     /// Gives the next player up
     /// ```
-    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, Player};
+    /// use lib_table_top::games::crazy_eights::{GameHistory, GameType::*, Player};
     /// use lib_table_top::common::rand::RngSeed;
     ///
-    /// let game = GameState::new(TwoPlayer, RngSeed([0; 32]));
+    /// let game = GameHistory::new(TwoPlayer, RngSeed([0; 32]));
     /// assert_eq!(game.whose_turn(), Player(0));
     /// ```
     pub fn whose_turn(&self) -> Player {
@@ -325,10 +330,10 @@ impl GameHistory {
     /// Undo the last action taken and returns the action. If there are no previous actions this
     /// function returns `None`
     /// ```
-    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*};
+    /// use lib_table_top::games::crazy_eights::{GameHistory, GameType::*};
     /// use lib_table_top::common::rand::RngSeed;
     ///
-    /// let mut game = GameState::new(ThreePlayer, RngSeed([0; 32]));
+    /// let mut game = GameHistory::new(ThreePlayer, RngSeed([0; 32]));
     /// assert_eq!(game.undo(), None);
     /// ```
     pub fn undo(&mut self) -> Option<(Player, Action)> {
