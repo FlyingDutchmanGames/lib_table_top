@@ -196,6 +196,12 @@ pub enum ActionError {
         top_card: Card,
         current_suit: Suit,
     },
+    CantPlayEightAsRegularCard {
+        card: Card,
+    },
+    CantPlayNonEightAsEight {
+        card: Card,
+    },
 }
 
 use ActionError::*;
@@ -380,12 +386,25 @@ impl GameState {
     ///   Err(NotPlayerTurn { attempted_player: Player(2), correct_player: Player(1) })
     /// );
     ///
+    /// // Trying to play an eight as a regular card is illegal
+    /// assert_eq!(
+    ///   game.make_move((Player(1), Play(Card(Eight, Spades)))),
+    ///   Err(CantPlayEightAsRegularCard { card: Card(Eight, Spades) })
+    /// );
+    ///
+    /// // Trying to play a non eight as an eight is illegal
+    /// assert_eq!(
+    ///   game.make_move((Player(1), PlayEight(Card(Seven, Spades), Hearts))),
+    ///   Err(CantPlayNonEightAsEight { card: Card(Seven, Spades) })
+    /// );
+    ///
     /// // Trying to draw a card when you have a valid move isn't legal
-    /// let potential_actions = game.player_view_for_current_player().valid_actions();
-    /// assert_eq!(potential_actions, vec![Play(Card(Five, Spades))]);
     /// assert_eq!(
     ///   game.make_move((Player(1), Draw)),
-    ///   Err(CantDrawWhenYouHavePlayableCards { player: Player(1), playable: vec![Card(Five, Spades)] })
+    ///   Err(CantDrawWhenYouHavePlayableCards {
+    ///     player: Player(1),
+    ///     playable: vec![Card(Five, Spades)]
+    ///   })
     /// );
     ///
     /// // Trying to play a card you don't have is an error
@@ -401,6 +420,20 @@ impl GameState {
                 attempted_player: player,
                 correct_player: whose_turn,
             });
+        }
+
+        if let Play(Card(Rank::Eight, suit)) = action {
+            return Err(CantPlayEightAsRegularCard {
+                card: Card(Rank::Eight, suit),
+            });
+        }
+
+        if let PlayEight(Card(rank, suit), _) = action {
+            if rank != Rank::Eight {
+                return Err(CantPlayNonEightAsEight {
+                    card: Card(rank, suit),
+                });
+            }
         }
 
         match action {
