@@ -283,21 +283,7 @@ impl GameView {
     }
 }
 
-impl GameState {
-    /// Undo the last action taken and returns the action. If there are no previous actions this
-    /// function returns `None`
-    /// ```
-    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*};
-    /// use lib_table_top::common::rand::RngSeed;
-    ///
-    /// let mut game = GameState::new(ThreePlayer, RngSeed([0; 32]));
-    /// assert_eq!(game.undo(), None);
-    /// ```
-    pub fn undo(&mut self) -> Option<(Player, Action)> {
-        let action = self.history.pop();
-        action.map(|action| (self.whose_turn(), action))
-    }
-}
+impl GameState {}
 
 impl GameState {
     pub fn new(game_type: GameType, seed: RngSeed) -> GameState {
@@ -313,6 +299,12 @@ impl GameState {
             .iter()
             .zip((0..self.game_type.number_of_players()).cycle())
             .map(|(action, player_num)| (Player(player_num), action))
+    }
+
+    pub fn make_move(&mut self, (player, action): (Player, Action)) -> Result<(), ActionError> {
+        let mut gv = self.game_view()?;
+        gv.make_move((player, action))?;
+        Ok(self.history.push(action))
     }
 
     pub fn game_view(&self) -> Result<GameView, ActionError> {
@@ -336,5 +328,19 @@ impl GameState {
     /// ```
     pub fn whose_turn(&self) -> Player {
         Player((self.history.len() as u8) % self.game_type.number_of_players())
+    }
+
+    /// Undo the last action taken and returns the action. If there are no previous actions this
+    /// function returns `None`
+    /// ```
+    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*};
+    /// use lib_table_top::common::rand::RngSeed;
+    ///
+    /// let mut game = GameState::new(ThreePlayer, RngSeed([0; 32]));
+    /// assert_eq!(game.undo(), None);
+    /// ```
+    pub fn undo(&mut self) -> Option<(Player, Action)> {
+        let action = self.history.pop();
+        action.map(|action| (self.whose_turn(), action))
     }
 }
