@@ -31,8 +31,8 @@ fn test_serializing_crazy_eights_game_history() {
             "seed": "0000000000000000000000000000000000000000000000000000000000000000",
             "number_of_players": 3,
             "history": [
-                {"Play": ["Jack", "Diamonds"]},
-                {"PlayEight": [["Eight", "Hearts"], "Spades"]},
+                {"Play": [11, "Diamonds"]},
+                {"PlayEight": [[8, "Hearts"], "Spades"]},
             ]
         })
     );
