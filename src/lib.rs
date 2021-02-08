@@ -10,8 +10,6 @@ extern crate enum_map;
 
 extern crate thiserror;
 
-extern crate colored;
-
 extern crate rand;
 extern crate rand_chacha;
 
