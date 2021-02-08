@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 pub mod rank;
 pub mod suit;
 
@@ -6,7 +7,7 @@ use suit::*;
 
 use std::fmt;
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord, Serialize, Deserialize)]
 pub struct Card(pub Rank, pub Suit);
 
 impl fmt::Display for Card {

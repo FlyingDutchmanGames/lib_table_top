@@ -1,4 +1,8 @@
-#[derive(Copy, Clone, Debug, Enum, PartialEq, PartialOrd, Eq, Hash, Ord)]
+use serde::{Deserialize, Serialize};
+
+#[derive(
+    Copy, Clone, Debug, Enum, PartialEq, PartialOrd, Eq, Hash, Ord, Serialize, Deserialize,
+)]
 pub enum Suit {
     Clubs,
     Diamonds,
