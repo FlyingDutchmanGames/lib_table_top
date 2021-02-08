@@ -1,78 +1,79 @@
 use crate::rand::prelude::SliceRandom;
 use rand_chacha::ChaCha20Rng;
+use serde::{Deserialize, Serialize};
+use serde_repr::*;
 use std::collections::HashMap;
 
 use crate::common::deck::card::{rank::Rank, suit::Suit, Card};
 use crate::common::deck::STANDARD_DECK;
 use crate::common::rand::RngSeed;
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Player(pub u8);
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub enum GameType {
-    TwoPlayer,
-    ThreePlayer,
-    FourPlayer,
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
+pub enum NumberOfPlayers {
+    Two = 2,
+    Three = 3,
+    Four = 4,
 }
 
-impl GameType {
+impl NumberOfPlayers {
     /// Returns the number of players for the current game type
     /// ```
-    /// use lib_table_top::games::crazy_eights::GameType::*;
+    /// use lib_table_top::games::crazy_eights::NumberOfPlayers;
     ///
-    /// assert_eq!(TwoPlayer.number_of_players(), 2);
-    /// assert_eq!(ThreePlayer.number_of_players(), 3);
-    /// assert_eq!(FourPlayer.number_of_players(), 4);
+    /// assert_eq!(NumberOfPlayers::Two.to_int(), 2);
+    /// assert_eq!(NumberOfPlayers::Three.to_int(), 3);
+    /// assert_eq!(NumberOfPlayers::Four.to_int(), 4);
     /// ```
-    pub fn number_of_players(&self) -> u8 {
+    pub fn to_int(&self) -> u8 {
         match self {
-            TwoPlayer => 2,
-            ThreePlayer => 3,
-            FourPlayer => 4,
+            NumberOfPlayers::Two => 2,
+            NumberOfPlayers::Three => 3,
+            NumberOfPlayers::Four => 4,
         }
     }
 
     /// Returns the starting number of cards per player
     /// ```
-    /// use lib_table_top::games::crazy_eights::GameType::*;
+    /// use lib_table_top::games::crazy_eights::NumberOfPlayers::*;
     ///
-    /// assert_eq!(TwoPlayer.starting_number_of_cards_per_player(), 7);
-    /// assert_eq!(ThreePlayer.starting_number_of_cards_per_player(), 5);
-    /// assert_eq!(FourPlayer.starting_number_of_cards_per_player(), 5);
+    /// assert_eq!(Two.starting_number_of_cards_per_player(), 7);
+    /// assert_eq!(Three.starting_number_of_cards_per_player(), 5);
+    /// assert_eq!(Four.starting_number_of_cards_per_player(), 5);
     /// ```
     pub fn starting_number_of_cards_per_player(&self) -> u8 {
         match self {
-            TwoPlayer => 7,
-            ThreePlayer => 5,
-            FourPlayer => 5,
+            NumberOfPlayers::Two => 7,
+            NumberOfPlayers::Three => 5,
+            NumberOfPlayers::Four => 5,
         }
     }
 
     /// An iterator of players for a game type. (Players are 0 indexed)
     /// ```
-    /// use lib_table_top::games::crazy_eights::{GameType::*, Player};
+    /// use lib_table_top::games::crazy_eights::{NumberOfPlayers, Player};
     ///
     /// assert_eq!(
-    ///   TwoPlayer.players().collect::<Vec<Player>>(),
+    ///   NumberOfPlayers::Two.players().collect::<Vec<Player>>(),
     ///   vec![Player(0), Player(1)]
     /// );
     ///
     /// assert_eq!(
-    ///   FourPlayer.players().collect::<Vec<Player>>(),
+    ///   NumberOfPlayers::Four.players().collect::<Vec<Player>>(),
     ///   vec![Player(0), Player(1), Player(2), Player(3)]
     /// );
     /// ```
     pub fn players(&self) -> impl Iterator<Item = Player> + Clone {
-        (0..self.number_of_players()).map(|num| Player(num))
+        (0..self.to_int()).map(|num| Player(num))
     }
 }
 
-use GameType::*;
-
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameHistory {
-    game_type: GameType,
+    number_of_players: NumberOfPlayers,
     seed: RngSeed,
     history: Vec<Action>,
 }
@@ -123,10 +124,10 @@ impl<'a> PlayerView<'a> {
     /// There are no valid actions if it's not that player's turn
     /// ```
     /// use lib_table_top::common::deck::card::{rank::Rank::*, suit::Suit::*, Card};
-    /// use lib_table_top::games::crazy_eights::{Action::*, GameState, GameType::*, Player};
+    /// use lib_table_top::games::crazy_eights::{Action::*, GameState, NumberOfPlayers, Player};
     /// use lib_table_top::common::rand::RngSeed;
     ///
-    /// let game = GameState::new(TwoPlayer, RngSeed([1; 32]));
+    /// let game = GameState::new(NumberOfPlayers::Two, RngSeed([1; 32]));
     ///
     /// // If it's not that player's turn the valid actions are empty
     /// let p1 = Player(1);
@@ -172,7 +173,7 @@ impl<'a> PlayerView<'a> {
     }
 }
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Action {
     /// Draw a card from the draw pile. Reshuffles the deck if there are no cards remaining in the
     /// draw pile. If there are no cards in the draw pile or discard pile, this is a no-op.
@@ -185,7 +186,7 @@ pub enum Action {
 
 use Action::*;
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ActionError {
     NotPlayerTurn {
         attempted_player: Player,
@@ -217,25 +218,25 @@ use ActionError::*;
 impl GameState {
     /// Creates a new game from a game type and seed
     /// ```
-    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, Player};
+    /// use lib_table_top::games::crazy_eights::{GameState, NumberOfPlayers, Player};
     /// use lib_table_top::common::rand::RngSeed;
     ///
-    /// let game = GameState::new(ThreePlayer, RngSeed([0; 32]));
+    /// let game = GameState::new(NumberOfPlayers::Three, RngSeed([0; 32]));
     /// assert_eq!(game.whose_turn(), Player(0));
     /// ```
-    pub fn new(game_type: GameType, seed: RngSeed) -> Self {
+    pub fn new(number_of_players: NumberOfPlayers, seed: RngSeed) -> Self {
         let mut rng = seed.into_rng();
         let mut cards: Vec<Card> = STANDARD_DECK.into();
         cards.shuffle(&mut rng);
         let mut deck = cards.into_iter();
 
-        let hands: HashMap<Player, Vec<Card>> = (0..game_type.number_of_players())
+        let hands: HashMap<Player, Vec<Card>> = (0..number_of_players.to_int())
             .map(Player)
             .map(|player| {
                 (
                     player,
                     (&mut deck)
-                        .take(game_type.starting_number_of_cards_per_player() as usize)
+                        .take(number_of_players.starting_number_of_cards_per_player() as usize)
                         .collect(),
                 )
             })
@@ -248,7 +249,7 @@ impl GameState {
         Self {
             game_history: GameHistory {
                 seed,
-                game_type,
+                number_of_players,
                 history: Vec::new(),
             },
             rng,
@@ -263,10 +264,10 @@ impl GameState {
     /// Gives the game history of the current game state, the game history is a minimal
     /// representation of the game state useful for serializing and persisting.
     /// ```
-    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, Player};
+    /// use lib_table_top::games::crazy_eights::{GameState, NumberOfPlayers, Player};
     /// use lib_table_top::common::rand::RngSeed;
     ///
-    /// let game = GameState::new(TwoPlayer, RngSeed([0; 32]));
+    /// let game = GameState::new(NumberOfPlayers::Two, RngSeed([0; 32]));
     /// assert_eq!(game.game_history().game_state(), Ok(game));
     /// ```
     pub fn game_history(&self) -> &GameHistory {
@@ -275,12 +276,12 @@ impl GameState {
 
     /// Iterator over the actions in a game
     /// ```
-    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*};
+    /// use lib_table_top::games::crazy_eights::{GameState, NumberOfPlayers};
     /// use lib_table_top::common::rand::RngSeed;
     /// use itertools::equal;
     ///
     /// // A new game has an empty history
-    /// let game = GameState::new(TwoPlayer, RngSeed([0; 32]));
+    /// let game = GameState::new(NumberOfPlayers::Two, RngSeed([0; 32]));
     /// assert!(equal(game.history(), vec![]));
     /// ```
     pub fn history(&self) -> impl Iterator<Item = (Player, &Action)> + '_ {
@@ -289,10 +290,10 @@ impl GameState {
 
     /// Gives the next player up
     /// ```
-    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, Player};
+    /// use lib_table_top::games::crazy_eights::{GameState, NumberOfPlayers, Player};
     /// use lib_table_top::common::rand::RngSeed;
     ///
-    /// let game = GameState::new(TwoPlayer, RngSeed([0; 32]));
+    /// let game = GameState::new(NumberOfPlayers::Two, RngSeed([0; 32]));
     /// assert_eq!(game.whose_turn(), Player(0));
     /// ```
     pub fn whose_turn(&self) -> Player {
@@ -301,10 +302,10 @@ impl GameState {
 
     /// Returns the player view for the current player
     /// ```
-    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, PlayerView};
+    /// use lib_table_top::games::crazy_eights::{GameState, NumberOfPlayers, PlayerView};
     /// use lib_table_top::common::rand::RngSeed;
     ///
-    /// let game = GameState::new(ThreePlayer, RngSeed([0; 32]));
+    /// let game = GameState::new(NumberOfPlayers::Three, RngSeed([0; 32]));
     /// assert_eq!(
     ///   game.player_view(game.whose_turn()),
     ///   game.current_player_view()
@@ -317,7 +318,7 @@ impl GameState {
     /// Returns the view accessible to a particular player, contains all the information needed to
     /// show the game to a particular player and have them decide on their action
     /// ```
-    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, Player, PlayerView};
+    /// use lib_table_top::games::crazy_eights::{GameState, NumberOfPlayers, Player, PlayerView};
     ///
     /// use std::collections::HashMap;
     /// use lib_table_top::common::rand::RngSeed;
@@ -325,7 +326,7 @@ impl GameState {
     ///
     /// # use lib_table_top::games::crazy_eights::ActionError;
     /// # fn main() -> Result<(), ActionError> {
-    /// let game = GameState::new(ThreePlayer, RngSeed([0; 32]));
+    /// let game = GameState::new(NumberOfPlayers::Three, RngSeed([0; 32]));
     /// let player_view = game.player_view(Player(0));
     ///
     /// assert_eq!(player_view, PlayerView {
@@ -378,13 +379,13 @@ impl GameState {
     /// Make a move on the current game, returns an error if it's illegal
     /// ```
     /// use lib_table_top::games::crazy_eights::{
-    ///   GameState, GameType::*, Player, PlayerView, Action::*, ActionError::*
+    ///   GameState, NumberOfPlayers, Player, PlayerView, Action::*, ActionError::*
     /// };
     /// use lib_table_top::common::rand::RngSeed;
     /// use lib_table_top::common::deck::card::{Card, suit::Suit::*, rank::Rank::*};
     ///
     /// // You can play a valid action
-    /// let mut game = GameState::new(ThreePlayer, RngSeed([1; 32]));
+    /// let mut game = GameState::new(NumberOfPlayers::Three, RngSeed([1; 32]));
     /// let action = game.current_player_view().valid_actions().pop().unwrap();
     /// assert!(game.make_move((Player(0), action)).is_ok());
     ///
@@ -493,11 +494,11 @@ impl GameState {
     /// Returns the status of the game
     /// ```
     /// use lib_table_top::games::crazy_eights::{
-    ///   Action, GameState, GameType::*, Status::*, Player
+    ///   Action, GameState, NumberOfPlayers, Status::*, Player
     /// };
     /// use lib_table_top::common::rand::RngSeed;
     ///
-    /// let mut game = GameState::new(ThreePlayer, RngSeed([1; 32]));
+    /// let mut game = GameState::new(NumberOfPlayers::Three, RngSeed([1; 32]));
     /// assert_eq!(game.status(), InProgress);
     ///
     /// while InProgress == game.status() {
@@ -555,9 +556,9 @@ impl GameState {
 }
 
 impl GameHistory {
-    fn new(game_type: GameType, seed: RngSeed) -> Self {
+    fn new(number_of_players: NumberOfPlayers, seed: RngSeed) -> Self {
         Self {
-            game_type,
+            number_of_players,
             seed,
             history: Vec::new(),
         }
@@ -567,14 +568,14 @@ impl GameHistory {
     /// calculate player positions, whereas `GameHistory` is useful to serialize and persist in a
     /// smaller footprint
     /// ```
-    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, Player};
+    /// use lib_table_top::games::crazy_eights::{GameState, NumberOfPlayers, Player};
     /// use lib_table_top::common::rand::RngSeed;
     ///
-    /// let game = GameState::new(TwoPlayer, RngSeed([0; 32]));
+    /// let game = GameState::new(NumberOfPlayers::Two, RngSeed([0; 32]));
     /// assert_eq!(game.game_history().game_state(), Ok(game));
     /// ```
     pub fn game_state(&self) -> Result<GameState, ActionError> {
-        let mut game_state = GameState::new(self.game_type, self.seed);
+        let mut game_state = GameState::new(self.number_of_players, self.seed);
 
         for (player, &action) in self.history() {
             game_state.make_move((player, action))?
@@ -586,12 +587,12 @@ impl GameHistory {
     fn history(&self) -> impl Iterator<Item = (Player, &Action)> + '_ {
         self.history
             .iter()
-            .zip((0..self.game_type.number_of_players()).cycle())
+            .zip((0..self.number_of_players.to_int()).cycle())
             .map(|(action, player_num)| (Player(player_num), action))
     }
 
     fn whose_turn(&self) -> Player {
-        Player((self.history.len() as u8) % self.game_type.number_of_players())
+        Player((self.history.len() as u8) % self.number_of_players.to_int())
     }
 
     fn undo(&mut self) -> Option<(Player, Action)> {
