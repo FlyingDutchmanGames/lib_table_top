@@ -88,6 +88,14 @@ pub struct GameState {
     current_suit: Suit,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Status {
+    InProgress,
+    Win { player: Player },
+}
+
+use Status::*;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlayerView<'a> {
     /// The player that this player view is related to, it should only be shown to this player
@@ -482,6 +490,33 @@ impl GameState {
         Ok(self.game_history.history.push(action))
     }
 
+    /// Returns the status of the game
+    /// ```
+    /// use lib_table_top::games::crazy_eights::{
+    ///   Action, GameState, GameType::*, Status::*, Player
+    /// };
+    /// use lib_table_top::common::rand::RngSeed;
+    ///
+    /// let mut game = GameState::new(ThreePlayer, RngSeed([1; 32]));
+    /// assert_eq!(game.status(), InProgress);
+    ///
+    /// while InProgress == game.status() {
+    ///   let action: Action = game.current_player_view().valid_actions().pop().unwrap();
+    ///   let player = game.whose_turn();
+    ///   assert!(game.make_move((player, action)).is_ok());
+    /// }
+    ///
+    /// assert_eq!(game.status(), Win { player: Player(1) });
+    /// ```
+    pub fn status(&self) -> Status {
+        self.hands
+            .iter()
+            .filter(|(_player, hand)| hand.is_empty())
+            .map(|(&player, _hand)| Win { player })
+            .next()
+            .unwrap_or(InProgress)
+    }
+
     fn player_hand(&self, player: Player) -> &[Card] {
         &self
             .hands
@@ -528,6 +563,16 @@ impl GameHistory {
         }
     }
 
+    /// Builds a `GameState` from the `GameHistory`, a `GameState` can be used to to make move and
+    /// calculate player positions, whereas `GameHistory` is useful to serialize and persist in a
+    /// smaller footprint
+    /// ```
+    /// use lib_table_top::games::crazy_eights::{GameState, GameType::*, Player};
+    /// use lib_table_top::common::rand::RngSeed;
+    ///
+    /// let game = GameState::new(TwoPlayer, RngSeed([0; 32]));
+    /// assert_eq!(game.game_history().game_state(), Ok(game));
+    /// ```
     pub fn game_state(&self) -> Result<GameState, ActionError> {
         let mut game_state = GameState::new(self.game_type, self.seed);
 
