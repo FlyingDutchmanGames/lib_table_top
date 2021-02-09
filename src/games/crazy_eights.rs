@@ -114,10 +114,10 @@ pub struct PlayerView<'a> {
     /// The discard pile, without the "top_card" that is currently being played on
     pub discarded: &'a [Card],
     /// The top card of the discard pile, this is the card that is next to be "played on"
-    pub top_card: &'a Card,
+    pub top_card: Card,
     /// The current suit to play, may or may not be the same as the suit of the top card, due to
     /// eights being played
-    pub current_suit: &'a Suit,
+    pub current_suit: Suit,
     /// Counts of the number of cards in each player's hand
     pub player_card_count: HashMap<Player, u8>,
     /// The number of cards in the draw pile
@@ -160,7 +160,7 @@ impl<'a> PlayerView<'a> {
                         .cloned()
                         .map(move |s| PlayEight(Card(Rank::Eight, *suit), s))
                         .collect(),
-                    Card(rank, suit) if rank == &self.top_card.0 || suit == self.current_suit => {
+                    Card(rank, suit) if rank == &self.top_card.0 || suit == &self.current_suit => {
                         vec![Play(Card(*rank, *suit))]
                     }
                     Card(_, _) => {
@@ -360,8 +360,8 @@ impl GameState {
     ///     Card(Jack, Diamonds),
     ///     Card(King, Spades)
     ///   ],
-    ///   top_card: &Card(Four, Diamonds),
-    ///   current_suit: &Diamonds,
+    ///   top_card: Card(Four, Diamonds),
+    ///   current_suit: Diamonds,
     ///   player_card_count: vec![
     ///     (Player(0), 5u8),
     ///     (Player(1), 5u8),
@@ -384,13 +384,13 @@ impl GameState {
             .collect();
 
         PlayerView {
-            current_suit: &self.current_suit,
+            current_suit: self.current_suit,
             discarded: self.discarded.as_slice(),
             draw_pile_remaining: self.draw_pile.len() as u8,
             hand,
             player,
             player_card_count,
-            top_card: &self.top_card,
+            top_card: self.top_card,
             whose_turn: self.game_history.whose_turn(),
         }
     }
