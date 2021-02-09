@@ -102,7 +102,7 @@ pub enum Status {
 
 use Status::*;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct PlayerView<'a> {
     /// The player that this player view is related to, it should only be shown to this player
     pub player: Player,
