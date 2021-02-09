@@ -3,6 +3,7 @@ use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
 use std::collections::HashMap;
+use std::convert::AsRef;
 
 use crate::common::deck::card::{rank::Rank, suit::Suit, Card};
 use crate::common::deck::STANDARD_DECK;
@@ -102,17 +103,20 @@ pub enum Status {
 
 use Status::*;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-pub struct PlayerView<'a> {
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlayerView<Container>
+where
+    Container: AsRef<[Card]>,
+{
     /// The player that this player view is related to, it should only be shown to this player
     pub player: Player,
     /// The player whose turn it is, may or may not be the same as the player this view is for. If
     /// it's not the view for the player whose turn it is, that player can't make a move
     pub whose_turn: Player,
     /// The cards in this player's hand
-    pub hand: &'a [Card],
+    pub hand: Container,
     /// The discard pile, without the "top_card" that is currently being played on
-    pub discarded: &'a [Card],
+    pub discarded: Container,
     /// The top card of the discard pile, this is the card that is next to be "played on"
     pub top_card: Card,
     /// The current suit to play, may or may not be the same as the suit of the top card, due to
@@ -124,7 +128,10 @@ pub struct PlayerView<'a> {
     pub draw_pile_remaining: u8,
 }
 
-impl<'a> PlayerView<'a> {
+impl<Container> PlayerView<Container>
+where
+    Container: AsRef<[Card]>,
+{
     /// Returns the valid actions for a player. Player views are specific to a turn and player.
     /// There are no valid actions if it's not that player's turn
     /// ```
@@ -153,6 +160,7 @@ impl<'a> PlayerView<'a> {
         if self.whose_turn == self.player {
             let playable: Vec<Action> = self
                 .hand
+                .as_ref()
                 .iter()
                 .flat_map(|card| match card {
                     Card(Rank::Eight, suit) => Suit::ALL
@@ -327,7 +335,7 @@ impl GameState {
     ///   game.current_player_view()
     /// );
     /// ```
-    pub fn current_player_view(&self) -> PlayerView<'_> {
+    pub fn current_player_view(&self) -> PlayerView<&[Card]> {
         self.player_view(self.whose_turn())
     }
 
@@ -346,23 +354,23 @@ impl GameState {
     /// # fn main() -> Result<(), ActionError> {
     /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([0; 32])};
     /// let game = GameState::new(settings);
-    /// let player_view = game.player_view(Player(0));
+    /// let player_view: PlayerView<&[Card]> = game.player_view(Player(0));
     ///
     /// assert_eq!(player_view, PlayerView {
     ///   player: Player(0),
     ///   whose_turn: Player(0),
-    ///   discarded: &[],
+    ///   discarded: vec![].as_slice(),
     ///   draw_pile_remaining: 36,
-    ///   hand: &[
+    ///   hand: vec![
     ///     Card(Ace, Diamonds),
     ///     Card(Five, Spades),
     ///     Card(Two, Hearts),
     ///     Card(Jack, Diamonds),
     ///     Card(King, Spades)
-    ///   ],
+    ///   ].as_slice(),
     ///   top_card: Card(Four, Diamonds),
     ///   current_suit: Diamonds,
-    ///   player_card_count: vec![
+    ///   player_card_count: [
     ///     (Player(0), 5u8),
     ///     (Player(1), 5u8),
     ///     (Player(2), 5u8)
@@ -371,7 +379,7 @@ impl GameState {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn player_view(&self, player: Player) -> PlayerView<'_> {
+    pub fn player_view(&self, player: Player) -> PlayerView<&[Card]> {
         let hand: &[Card] = self
             .hands
             .get(&player)
