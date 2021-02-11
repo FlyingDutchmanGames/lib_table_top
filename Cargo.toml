@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 hex = { version = "0.4.2", features = ["serde"] }
+im = { version = "15.0.0", features = ["serde"] }
 enum-map = "0.6.4"
 itertools = "0.10.0"
 thiserror = "1.0.23"
