@@ -700,7 +700,8 @@ impl GameState {
     ///
     /// // New games have no actions to undo
     /// let mut game: GameState = Default::default();
-    /// assert_eq!(game.undo(), None);
+    /// let (_, action) = game.undo();
+    /// assert_eq!(action, None);
     ///
     /// // You can undo the actions you've made
     /// let next_move = game.valid_actions().next().unwrap();
@@ -708,11 +709,14 @@ impl GameState {
     /// game.make_move(next_move);
     ///
     /// assert!(original != game);
-    /// assert_eq!(game.undo(), Some(next_move));
+    /// let (game, action) = game.undo();
+    /// assert_eq!(action, Some(next_move));
     /// assert!(original == game);
     /// ```
-    pub fn undo(&mut self) -> Option<Action> {
-        self.history.pop_back()
+    pub fn undo(&self) -> (Self, Option<Action>) {
+        let mut new_game = self.clone();
+        let action = new_game.history.pop_back();
+        (new_game, action)
     }
 }
 
