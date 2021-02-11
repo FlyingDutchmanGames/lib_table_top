@@ -1,6 +1,7 @@
 use enum_map::EnumMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// A row value inside of a position (y coordinate)
@@ -359,7 +360,7 @@ use Status::*;
 /// The game state
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameState {
-    settings: Settings,
+    settings: Arc<Settings>,
     history: Vec<Action>,
 }
 
@@ -368,7 +369,7 @@ impl GameState {
     /// construct a new game
     pub fn new(settings: Settings) -> Self {
         Self {
-            settings,
+            settings: Arc::new(settings),
             history: vec![],
         }
     }
