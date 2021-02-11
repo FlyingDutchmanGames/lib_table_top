@@ -1,4 +1,5 @@
 use enum_map::EnumMap;
+use im::Vector;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
 use std::sync::Arc;
@@ -361,7 +362,7 @@ use Status::*;
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameState {
     settings: Arc<Settings>,
-    history: Vec<Action>,
+    history: Vector<Action>,
 }
 
 impl GameState {
@@ -370,7 +371,7 @@ impl GameState {
     pub fn new(settings: Settings) -> Self {
         Self {
             settings: Arc::new(settings),
-            history: vec![],
+            history: Vector::new(),
         }
     }
 
@@ -449,7 +450,7 @@ impl GameState {
     ///   vec![&action_1, &action_2, &action_3]
     /// )
     /// ```
-    pub fn history(&self) -> impl Iterator<Item = &Action> + Clone {
+    pub fn history(&self) -> impl Iterator<Item = &Action> {
         self.history.iter()
     }
 
@@ -468,7 +469,7 @@ impl GameState {
     /// let removed: Vec<Position> = game.removed_positions().collect();
     /// assert_eq!(removed, vec![pos]);
     /// ```
-    pub fn removed_positions(&self) -> impl Iterator<Item = Position> + Clone + '_ {
+    pub fn removed_positions(&self) -> impl Iterator<Item = Position> + '_ {
         self.settings
             .starting_removed_positions
             .iter()
@@ -689,7 +690,7 @@ impl GameState {
                 target: action.remove,
             });
         }
-        Ok(self.history.push(action))
+        Ok(self.history.push_back(action))
     }
 
     /// Allows you to undo the the most recent action, returning the action.
@@ -711,7 +712,7 @@ impl GameState {
     /// assert!(original == game);
     /// ```
     pub fn undo(&mut self) -> Option<Action> {
-        self.history.pop()
+        self.history.pop_back()
     }
 }
 
