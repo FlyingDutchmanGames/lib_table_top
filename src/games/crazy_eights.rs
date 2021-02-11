@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_repr::*;
 use std::collections::HashMap;
 use std::convert::AsRef;
+use thiserror::Error;
 
 use crate::common::deck::card::{rank::Rank, suit::Suit, Card};
 use crate::common::deck::STANDARD_DECK;
@@ -201,31 +202,35 @@ pub enum Action {
 
 use Action::*;
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Error, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ActionError {
+    #[error(
+        "It's {:?}'s turn and not {:?}'s turn",
+        correct_player,
+        attempted_player
+    )]
     NotPlayerTurn {
         attempted_player: Player,
         correct_player: Player,
     },
-    CantDrawWhenYouHavePlayableCards {
-        player: Player,
-        playable: Vec<Card>,
-    },
-    PlayerDoesNotHaveCard {
-        player: Player,
-        card: Card,
-    },
+    #[error(
+        "Player {:?} can't draw because they have playable cards {:?}",
+        player,
+        playable
+    )]
+    CantDrawWhenYouHavePlayableCards { player: Player, playable: Vec<Card> },
+    #[error("Player {:?} does not have card {:?}", player, card)]
+    PlayerDoesNotHaveCard { player: Player, card: Card },
+    #[error("The Card {:?}, can not be played when the current suit is {:?} and rank is {:?}", attempted_card,current_suit, top_card.1)]
     CardCantBePlayed {
         attempted_card: Card,
         top_card: Card,
         current_suit: Suit,
     },
-    CantPlayEightAsRegularCard {
-        card: Card,
-    },
-    CantPlayNonEightAsEight {
-        card: Card,
-    },
+    #[error("Can't play the eight {:?} as a regular card", card)]
+    CantPlayEightAsRegularCard { card: Card },
+    #[error("Can't play {:?} as an eight", card)]
+    CantPlayNonEightAsEight { card: Card },
 }
 
 use ActionError::*;
