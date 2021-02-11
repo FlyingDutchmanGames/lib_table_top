@@ -5,8 +5,6 @@ use self::card::{rank::Rank::*, suit::Suit::*};
 
 pub type StandardDeck = [Card; 52];
 
-pub type Shuffler = dyn Fn(Vec<Card>) -> Vec<Card>;
-
 pub const STANDARD_DECK: StandardDeck = [
     Card(Ace, Hearts),
     Card(King, Hearts),
