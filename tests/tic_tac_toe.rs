@@ -64,9 +64,7 @@ fn test_make_move() {
 fn test_undoing_moves() {
     let game_state = GameState::new();
     assert_eq!(game_state.whose_turn(), X);
-    let result = game_state.make_move((X, (Col1, Row1)));
-    assert!(result.is_ok());
-    let mut game_state = result.unwrap();
+    let game_state = game_state.make_move((X, (Col1, Row1))).unwrap();
     assert_eq!(
         game_state.history().collect::<Vec<(Player, Position)>>(),
         vec![(X, (Col1, Row1))]
@@ -75,7 +73,8 @@ fn test_undoing_moves() {
     assert_eq!(game_state.whose_turn(), O);
 
     // undo a made move
-    assert_eq!(game_state.undo(), Some((X, (Col1, Row1))));
+    let (game_state, action) = game_state.undo();
+    assert_eq!(action, Some((X, (Col1, Row1))));
     assert_eq!(game_state.whose_turn(), X);
     assert_eq!(
         game_state.history().collect::<Vec<(Player, Position)>>(),

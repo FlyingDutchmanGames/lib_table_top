@@ -144,7 +144,7 @@ impl GameState {
     /// ```
     /// use lib_table_top::games::tic_tac_toe::{Action, GameState};
     ///
-    /// let mut game: GameState = Default::default();
+    /// let game: GameState = Default::default();
     ///
     /// // The history starts empty
     /// assert!(game.history().count() == 0);
@@ -175,7 +175,7 @@ impl GameState {
     /// ```
     /// use lib_table_top::games::tic_tac_toe::{GameState, Row, Row::*, Col, Col::*, Player::*};
     ///
-    /// let mut game: GameState = Default::default();
+    /// let game: GameState = Default::default();
     ///
     /// // All spaces are empty on a new game
     /// let board = game.board();
@@ -205,7 +205,7 @@ impl GameState {
     /// ```
     /// use lib_table_top::games::tic_tac_toe::GameState;
     ///
-    /// let mut game: GameState = Default::default();
+    /// let game: GameState = Default::default();
     /// let board = game.board();
     ///
     /// for (col, row) in game.available() {
@@ -258,7 +258,7 @@ impl GameState {
     /// use lib_table_top::games::tic_tac_toe::{GameState, Player::*};
     ///
     /// // Games always start with `X`
-    /// let mut game: GameState = Default::default();
+    /// let game: GameState = Default::default();
     /// assert_eq!(game.whose_turn(), X);
     ///
     /// // After X moves, it's O's turn
@@ -316,24 +316,28 @@ impl GameState {
     /// use lib_table_top::games::tic_tac_toe::GameState;
     ///
     /// // A new game has no history, so there is nothing to do
-    /// let mut game: GameState = Default::default();
-    /// assert_eq!(game.undo(), None);
+    /// let game: GameState = Default::default();
+    /// let (game, action) = game.undo();
+    /// assert_eq!(action, None);
     ///
     /// // You can undo actions
     /// let original_game = game.clone();
     /// assert!(game == original_game);
     ///
     /// let action = game.valid_actions().next().unwrap();
-    /// let mut game = game.make_move(action).unwrap();
+    /// let game = game.make_move(action).unwrap();
     /// assert!(game != original_game);
     ///
-    /// assert_eq!(game.undo(), Some(action));
+    /// let (game, undid_action) = game.undo();
+    /// assert_eq!(undid_action, Some(action));
     /// assert_eq!(game, original_game);
     /// ```
-    pub fn undo(&mut self) -> Option<Action> {
+    pub fn undo(&self) -> (Self, Option<Action>) {
         // NGL, this one is tricky, because once you pop(), it switches whose turn it is.
-        let current_player = self.whose_turn().opponent();
-        self.history.pop_back().map(|pos| (current_player, pos))
+        let mut new_game = self.clone();
+        let player = self.whose_turn().opponent();
+        let action = new_game.history.pop_back().map(|pos| (player, pos));
+        (new_game, action)
     }
 
     /// Apply an action to the game, returns nothing if successful, and returns an error and
