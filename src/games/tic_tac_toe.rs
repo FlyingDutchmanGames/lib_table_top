@@ -2,6 +2,7 @@ use enum_map::EnumMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
 use thiserror::Error;
+use im::Vector;
 
 /// Player pieces, X & O
 #[derive(Copy, Clone, Debug, Enum, PartialEq, Eq, Serialize, Deserialize)]
@@ -114,7 +115,7 @@ use Status::*;
 /// Representation of a Tic-Tac-Toe game
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameState {
-    history: Vec<Position>,
+    history: Vector<Position>,
 }
 
 impl Default for GameState {
@@ -134,7 +135,7 @@ impl GameState {
     /// ```
     pub fn new() -> Self {
         GameState {
-            history: Vec::with_capacity(9),
+            history: Vector::new(),
         }
     }
 
@@ -162,7 +163,7 @@ impl GameState {
     ///   vec![action1, action2, action3]
     /// )
     /// ```
-    pub fn history(&self) -> impl Iterator<Item = Action> + Clone + '_ {
+    pub fn history(&self) -> impl Iterator<Item = Action> + '_ {
         let players = [X, O].iter().cycle();
         self.history
             .iter()
@@ -332,7 +333,7 @@ impl GameState {
     pub fn undo(&mut self) -> Option<Action> {
         // NGL, this one is tricky, because once you pop(), it switches whose turn it is.
         let current_player = self.whose_turn().opponent();
-        self.history.pop().map(|pos| (current_player, pos))
+        self.history.pop_back().map(|pos| (current_player, pos))
     }
 
     /// Apply an action to the game, returns nothing if successful, and returns an error and
@@ -368,7 +369,7 @@ impl GameState {
         }
 
         if player == self.whose_turn() {
-            Ok(self.history.push(position))
+            Ok(self.history.push_back(position))
         } else {
             Err(OtherPlayerTurn { attempted: player })
         }
