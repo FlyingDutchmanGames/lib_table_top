@@ -221,7 +221,7 @@ pub enum ActionError {
     CantDrawWhenYouHavePlayableCards { player: Player, playable: Vec<Card> },
     #[error("Player {:?} does not have card {:?}", player, card)]
     PlayerDoesNotHaveCard { player: Player, card: Card },
-    #[error("The Card {:?}, can not be played when the current suit is {:?} and rank is {:?}", attempted_card,current_suit, top_card.1)]
+    #[error("The Card {:?}, can not be played when the current suit is {:?} and rank is {:?}", attempted_card,current_suit, top_card.0)]
     CardCantBePlayed {
         attempted_card: Card,
         top_card: Card,
@@ -423,46 +423,83 @@ impl GameState {
     /// assert!(game.make_move((Player(0), action)).is_ok());
     ///
     /// // Trying to play when it's not your turn is an error
+    /// let err = game.make_move((Player(2), Draw));
     /// assert_eq!(
-    ///   game.make_move((Player(2), Draw)),
+    ///   err,
     ///   Err(NotPlayerTurn { attempted_player: Player(2), correct_player: Player(1) })
     /// );
     ///
-    /// // Trying to play an eight as a regular card is illegal
     /// assert_eq!(
-    ///   game.make_move((Player(1), Play(Card(Eight, Spades)))),
+    ///   &err.unwrap_err().to_string(),
+    ///   "It\'s Player(1)\'s turn and not Player(2)\'s turn",
+    /// );
+    ///
+    ///
+    /// // Trying to play an eight as a regular card is illegal
+    /// let err = game.make_move((Player(1), Play(Card(Eight, Spades))));
+    /// assert_eq!(
+    ///   err,
     ///   Err(CantPlayEightAsRegularCard { card: Card(Eight, Spades) })
     /// );
     ///
-    /// // Trying to play a non eight as an eight is illegal
     /// assert_eq!(
-    ///   game.make_move((Player(1), PlayEight(Card(Seven, Spades), Hearts))),
+    ///   &err.unwrap_err().to_string(),
+    ///   "Can\'t play the eight Card(Eight, Spades) as a regular card",
+    /// );
+    ///
+    /// // Trying to play a non eight as an eight is illegal
+    /// let err = game.make_move((Player(1), PlayEight(Card(Seven, Spades), Hearts)));
+    /// assert_eq!(
+    ///   err,
     ///   Err(CantPlayNonEightAsEight { card: Card(Seven, Spades) })
     /// );
     ///
-    /// // Trying to draw a card when you have a valid move isn't legal
     /// assert_eq!(
-    ///   game.make_move((Player(1), Draw)),
+    ///   &err.unwrap_err().to_string(),
+    ///   "Can\'t play Card(Seven, Spades) as an eight",
+    /// );
+    ///
+    /// // Trying to draw a card when you have a valid move isn't legal
+    /// let err = game.make_move((Player(1), Draw));
+    /// assert_eq!(
+    ///   err,
     ///   Err(CantDrawWhenYouHavePlayableCards {
     ///     player: Player(1),
     ///     playable: vec![Card(Five, Spades)]
     ///   })
     /// );
     ///
-    /// // Trying to play a card you don't have is an error
     /// assert_eq!(
-    ///   game.make_move((Player(1), Play(Card(Jack, Spades)))),
+    ///   &err.unwrap_err().to_string(),
+    ///   "Player Player(1) can\'t draw because they have playable cards [Card(Five, Spades)]",
+    /// );
+    ///
+    /// // Trying to play a card you don't have is an error
+    /// let err = game.make_move((Player(1), Play(Card(Jack, Spades))));
+    /// assert_eq!(
+    ///   err,
     ///   Err(PlayerDoesNotHaveCard { player: Player(1), card: Card(Jack, Spades) })
     /// );
     ///
-    /// // Trying to play a card you have but doesn't follow suit is an error
     /// assert_eq!(
-    ///   game.make_move((Player(1), Play(Card(Ten, Clubs)))),
+    ///   &err.unwrap_err().to_string(),
+    ///   "Player Player(1) does not have card Card(Jack, Spades)",
+    /// );
+    ///
+    /// // Trying to play a card you have but doesn't follow suit is an error
+    /// let err = game.make_move((Player(1), Play(Card(Ten, Clubs))));
+    /// assert_eq!(
+    ///   err,
     ///   Err(CardCantBePlayed {
     ///     attempted_card: Card(Ten, Clubs),
     ///     top_card: Card(Nine, Spades),
     ///     current_suit: Spades
     ///   })
+    /// );
+    ///
+    /// assert_eq!(
+    ///   &err.unwrap_err().to_string(),
+    ///   "The Card Card(Ten, Clubs), can not be played when the current suit is Spades and rank is Nine",
     /// );
     /// ```
     pub fn make_move(&mut self, (player, action): (Player, Action)) -> Result<(), ActionError> {
