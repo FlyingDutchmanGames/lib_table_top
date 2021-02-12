@@ -48,7 +48,7 @@ fn test_serializing_crazy_eights_player_view() {
 
     // Def couldn't figure out how to go between PlayerView<Vec<Card>> to PlayerView<&[Card]> so
     // just test deserializing it again
-    let deserialized: PlayerView<Vec<Card>> = serde_json::from_value(serialized).unwrap();
+    let deserialized: PlayerView = serde_json::from_value(serialized).unwrap();
     assert_eq!(serde_json::to_value(deserialized).unwrap(), expected);
 }
 
