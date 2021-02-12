@@ -4,7 +4,6 @@ use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
 use std::collections::HashMap;
-use std::convert::AsRef;
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -91,9 +90,9 @@ pub struct GameHistory {
 pub struct GameState {
     game_history: GameHistory,
     rng: Arc<ChaCha20Rng>,
-    discarded: Vec<Card>,
+    discarded: Vector<Card>,
     hands: HashMap<Player, Vec<Card>>,
-    draw_pile: Vec<Card>,
+    draw_pile: Vector<Card>,
     top_card: Card,
     current_suit: Suit,
 }
@@ -107,19 +106,16 @@ pub enum Status {
 use Status::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PlayerView<Container>
-where
-    Container: AsRef<[Card]>,
-{
+pub struct PlayerView {
     /// The player that this player view is related to, it should only be shown to this player
     pub player: Player,
     /// The player whose turn it is, may or may not be the same as the player this view is for. If
     /// it's not the view for the player whose turn it is, that player can't make a move
     pub whose_turn: Player,
     /// The cards in this player's hand
-    pub hand: Container,
+    pub hand: Vector<Card>,
     /// The discard pile, without the "top_card" that is currently being played on
-    pub discarded: Container,
+    pub discarded: Vector<Card>,
     /// The top card of the discard pile, this is the card that is next to be "played on"
     pub top_card: Card,
     /// The current suit to play, may or may not be the same as the suit of the top card, due to
@@ -131,10 +127,7 @@ where
     pub draw_pile_remaining: u8,
 }
 
-impl<Container> PlayerView<Container>
-where
-    Container: AsRef<[Card]>,
-{
+impl PlayerView {
     /// Returns the valid actions for a player. Player views are specific to a turn and player.
     /// There are no valid actions if it's not that player's turn
     /// ```
@@ -164,7 +157,6 @@ where
         if self.whose_turn == self.player {
             let playable: Vec<Action> = self
                 .hand
-                .as_ref()
                 .iter()
                 .flat_map(|card| match card {
                     Card(Rank::Eight, suit) => Suit::ALL
@@ -286,7 +278,7 @@ impl GameState {
             hands,
             top_card,
             current_suit: top_card.1,
-            discarded: vec![],
+            discarded: Vector::new(),
         }
     }
 
@@ -348,7 +340,7 @@ impl GameState {
     ///   game.current_player_view()
     /// );
     /// ```
-    pub fn current_player_view(&self) -> PlayerView<&[Card]> {
+    pub fn current_player_view(&self) -> PlayerView {
         self.player_view(self.whose_turn())
     }
 
@@ -362,26 +354,27 @@ impl GameState {
     /// use std::collections::HashMap;
     /// use lib_table_top::common::rand::RngSeed;
     /// use lib_table_top::common::deck::card::{Card, suit::Suit::*, rank::Rank::*};
+    /// use im::{Vector, vector};
     /// use std::sync::Arc;
     ///
     /// # use lib_table_top::games::crazy_eights::ActionError;
     /// # fn main() -> Result<(), ActionError> {
     /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([0; 32])};
     /// let game = GameState::new(Arc::new(settings));
-    /// let player_view: PlayerView<&[Card]> = game.player_view(Player(0));
+    /// let player_view: PlayerView = game.player_view(Player(0));
     ///
     /// assert_eq!(player_view, PlayerView {
     ///   player: Player(0),
     ///   whose_turn: Player(0),
-    ///   discarded: vec![].as_slice(),
+    ///   discarded: Vector::new(),
     ///   draw_pile_remaining: 36,
-    ///   hand: vec![
+    ///   hand: vector![
     ///     Card(Ace, Diamonds),
     ///     Card(Five, Spades),
     ///     Card(Two, Hearts),
     ///     Card(Jack, Diamonds),
     ///     Card(King, Spades)
-    ///   ].as_slice(),
+    ///   ],
     ///   top_card: Card(Four, Diamonds),
     ///   current_suit: Diamonds,
     ///   player_card_count: [
@@ -393,12 +386,12 @@ impl GameState {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn player_view(&self, player: Player) -> PlayerView<&[Card]> {
-        let hand: &[Card] = self
+    pub fn player_view(&self, player: Player) -> PlayerView {
+        let hand = self
             .hands
             .get(&player)
-            .map(|hand| hand.as_slice())
-            .unwrap_or(&[]);
+            .map(|hand| hand.into())
+            .unwrap_or(Vector::new());
         let player_card_count: HashMap<Player, u8> = self
             .hands
             .iter()
@@ -407,7 +400,7 @@ impl GameState {
 
         PlayerView {
             current_suit: self.current_suit,
-            discarded: self.discarded.as_slice(),
+            discarded: self.discarded.clone(),
             draw_pile_remaining: self.draw_pile.len() as u8,
             hand,
             player,
@@ -530,15 +523,23 @@ impl GameState {
 
                 let mut new_rng = (*self.rng).clone();
                 if self.draw_pile.is_empty() {
-                    self.draw_pile.append(&mut self.discarded);
-                    self.draw_pile.shuffle(&mut new_rng);
+                    let mut draw_pile: Vec<Card> = self
+                        .draw_pile
+                        .iter()
+                        .chain(self.discarded.iter())
+                        .copied()
+                        .collect();
+                    self.draw_pile.extend(self.discarded.clone());
+                    draw_pile.shuffle(&mut new_rng);
+                    self.draw_pile = draw_pile.into();
                 }
+                self.discarded = Vector::new();
                 self.rng = Arc::new(new_rng);
 
                 self.hands
                     .entry(player)
                     .or_insert(vec![])
-                    .extend(self.draw_pile.pop().iter());
+                    .extend(self.draw_pile.pop_back().iter());
             }
             Play(card) => {
                 self.play_card(player, card)?;
@@ -604,7 +605,7 @@ impl GameState {
         }
 
         let old_top_card = std::mem::replace(&mut self.top_card, card);
-        self.discarded.push(old_top_card);
+        self.discarded.push_back(old_top_card);
         self.hands
             .entry(player)
             .or_insert(vec![])
