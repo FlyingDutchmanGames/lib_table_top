@@ -678,8 +678,12 @@ impl GameHistory {
         Player((self.history.len() as u8) % self.settings.number_of_players.to_int())
     }
 
-    fn undo(&mut self) -> Option<(Player, Action)> {
-        let action = self.history.pop_back();
-        action.map(|action| (self.whose_turn(), action))
+    fn undo(&self) -> (Self, Option<(Player, Action)>) {
+        let mut new_game_history = self.clone();
+        let action = new_game_history.history.pop_back();
+        (
+            new_game_history,
+            action.map(|action| (self.whose_turn(), action)),
+        )
     }
 }
