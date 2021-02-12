@@ -317,7 +317,7 @@ impl GameState {
     /// let game = GameState::new(Arc::new(settings));
     /// assert!(equal(game.history(), vec![]));
     /// ```
-    pub fn history(&self) -> impl Iterator<Item = (Player, &Action)> + '_ {
+    pub fn history(&self) -> impl Iterator<Item = (Player, Action)> + '_ {
         self.game_history.history()
     }
 
@@ -428,9 +428,9 @@ impl GameState {
     ///
     /// // You can play a valid action
     /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([1; 32])};
-    /// let mut game = GameState::new(Arc::new(settings));
+    /// let game = GameState::new(Arc::new(settings));
     /// let action = game.current_player_view().valid_actions().pop().unwrap();
-    /// assert!(game.make_move((Player(0), action)).is_ok());
+    /// let game = game.make_move((Player(0), action)).unwrap();
     ///
     /// // Trying to play when it's not your turn is an error
     /// let err = game.make_move((Player(2), Draw));
@@ -512,35 +512,16 @@ impl GameState {
     ///   "The Card Card(Ten, Clubs), can not be played when the current suit is Spades and rank is Nine",
     /// );
     /// ```
-    pub fn make_move(&mut self, (player, action): (Player, Action)) -> Result<(), ActionError> {
-        let whose_turn = self.whose_turn();
-        if player != whose_turn {
-            return Err(NotPlayerTurn {
-                attempted_player: player,
-                correct_player: whose_turn,
-            });
-        }
-
-        if let Play(Card(Rank::Eight, suit)) = action {
-            return Err(CantPlayEightAsRegularCard {
-                card: Card(Rank::Eight, suit),
-            });
-        }
-
-        if let PlayEight(Card(rank, suit), _) = action {
-            if rank != Rank::Eight {
-                return Err(CantPlayNonEightAsEight {
-                    card: Card(rank, suit),
-                });
-            }
-        }
+    pub fn make_move(&self, (player, action): (Player, Action)) -> Result<Self, ActionError> {
+        self.action_semantically_correct((player, action))?;
+        let mut new_game = self.clone();
 
         match action {
             Draw => {
-                let playable: Vec<Card> = self
+                let playable: Vec<Card> = new_game
                     .player_hand(player)
                     .iter()
-                    .filter(|card| self.valid_to_play(card))
+                    .filter(|card| new_game.valid_to_play(card))
                     .copied()
                     .collect();
 
@@ -548,29 +529,32 @@ impl GameState {
                     return Err(CantDrawWhenYouHavePlayableCards { player, playable });
                 }
 
-                let mut new_rng = (*self.rng).to_owned();
-                if self.draw_pile.is_empty() {
-                    self.draw_pile.append(&mut self.discarded);
-                    self.draw_pile.shuffle(&mut new_rng);
+                let mut new_rng = (*new_game.rng).to_owned();
+                if new_game.draw_pile.is_empty() {
+                    new_game.draw_pile.append(&mut new_game.discarded);
+                    new_game.draw_pile.shuffle(&mut new_rng);
                 }
-                self.rng = Arc::new(new_rng);
+                new_game.rng = Arc::new(new_rng);
 
-                self.hands
+                new_game
+                    .hands
                     .entry(player)
                     .or_insert(vec![])
-                    .extend(self.draw_pile.pop().iter());
+                    .extend(new_game.draw_pile.pop().iter());
             }
             Play(card) => {
-                self.play_card(player, card)?;
-                self.current_suit = card.1;
+                new_game.play_card(player, card)?;
+                new_game.current_suit = card.1;
             }
             PlayEight(card, suit) => {
-                self.play_card(player, card)?;
-                self.current_suit = suit;
+                new_game.play_card(player, card)?;
+                new_game.current_suit = suit;
             }
         }
 
-        Ok(self.game_history.history.push_back(action))
+        new_game.game_history.history.push_back(action);
+
+        Ok(new_game)
     }
 
     /// Returns the status of the game
@@ -582,13 +566,18 @@ impl GameState {
     /// use std::sync::Arc;
     ///
     /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([1; 32])};
-    /// let mut game = GameState::new(Arc::new(settings));
+    /// let game = GameState::new(Arc::new(settings));
     /// assert_eq!(game.status(), InProgress);
     ///
     /// while InProgress == game.status() {
-    ///   let action: Action = game.current_player_view().valid_actions().pop().unwrap();
+    ///   let action: Action = game
+    ///     .current_player_view()
+    ///     .valid_actions()
+    ///     .pop()
+    ///     .unwrap();
+    ///
     ///   let player = game.whose_turn();
-    ///   assert!(game.make_move((player, action)).is_ok());
+    ///   let game = game.make_move((player, action)).unwrap();
     /// }
     ///
     /// assert_eq!(game.status(), Win { player: Player(1) });
@@ -637,6 +626,35 @@ impl GameState {
         let Card(current_rank, _suit) = self.top_card;
         rank == &Rank::Eight || rank == &current_rank || suit == &self.current_suit
     }
+
+    fn action_semantically_correct(
+        &self,
+        (player, action): (Player, Action),
+    ) -> Result<(), ActionError> {
+        let whose_turn = self.whose_turn();
+        if player != whose_turn {
+            return Err(NotPlayerTurn {
+                attempted_player: player,
+                correct_player: whose_turn,
+            });
+        }
+
+        if let Play(Card(Rank::Eight, suit)) = action {
+            return Err(CantPlayEightAsRegularCard {
+                card: Card(Rank::Eight, suit),
+            });
+        }
+
+        if let PlayEight(Card(rank, suit), _) = action {
+            if rank != Rank::Eight {
+                return Err(CantPlayNonEightAsEight {
+                    card: Card(rank, suit),
+                });
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl GameHistory {
@@ -660,20 +678,18 @@ impl GameHistory {
     /// assert_eq!(game.game_history().game_state(), Ok(game));
     /// ```
     pub fn game_state(&self) -> Result<GameState, ActionError> {
-        let mut game_state = GameState::new(self.settings.clone());
+        let game_state = GameState::new(self.settings.clone());
 
-        for (player, &action) in self.history() {
-            game_state.make_move((player, action))?
-        }
-
-        Ok(game_state)
+        self.history().try_fold(game_state, |game_state, action| {
+            game_state.make_move(action)
+        })
     }
 
-    fn history(&self) -> impl Iterator<Item = (Player, &Action)> + '_ {
+    fn history(&self) -> impl Iterator<Item = (Player, Action)> + '_ {
         self.history
             .iter()
             .zip((0..self.settings.number_of_players.to_int()).cycle())
-            .map(|(action, player_num)| (Player(player_num), action))
+            .map(|(&action, player_num)| (Player(player_num), action))
     }
 
     fn whose_turn(&self) -> Player {
