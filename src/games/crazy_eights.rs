@@ -1,4 +1,5 @@
 use crate::rand::prelude::SliceRandom;
+use im::Vector;
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
@@ -83,7 +84,7 @@ pub struct Settings {
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameHistory {
     settings: Arc<Settings>,
-    history: Vec<Action>,
+    history: Vector<Action>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -278,7 +279,7 @@ impl GameState {
         Self {
             game_history: GameHistory {
                 settings,
-                history: Vec::new(),
+                history: Vector::new(),
             },
             rng: Arc::new(rng),
             draw_pile,
@@ -548,8 +549,8 @@ impl GameState {
                 self.current_suit = suit;
             }
         }
-
-        Ok(self.game_history.history.push(action))
+        self.game_history.history.push_back(action);
+        Ok(())
     }
 
     /// Returns the status of the game
@@ -651,7 +652,7 @@ impl GameHistory {
     fn new(settings: Arc<Settings>) -> Self {
         Self {
             settings,
-            history: Vec::new(),
+            history: Vector::new(),
         }
     }
 
@@ -688,8 +689,10 @@ impl GameHistory {
         Player((self.history.len() as u8) % self.settings.number_of_players.to_int())
     }
 
-    fn undo(&mut self) -> Option<(Player, Action)> {
-        let action = self.history.pop();
-        action.map(|action| (self.whose_turn(), action))
+    fn undo(&self) -> (Self, Option<(Player, Action)>) {
+        let mut game_history = self.clone();
+        let maybe_action = game_history.history.pop_back();
+        let maybe_action = maybe_action.map(|action| (game_history.whose_turn(), action));
+        (game_history, maybe_action)
     }
 }
