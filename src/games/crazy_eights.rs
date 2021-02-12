@@ -1,4 +1,5 @@
 use crate::rand::prelude::SliceRandom;
+use im::Vector;
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
@@ -83,7 +84,7 @@ pub struct Settings {
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameHistory {
     settings: Arc<Settings>,
-    history: Vec<Action>,
+    history: Vector<Action>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -278,7 +279,7 @@ impl GameState {
         Self {
             game_history: GameHistory {
                 settings,
-                history: Vec::new(),
+                history: Vector::new(),
             },
             rng,
             draw_pile,
@@ -567,7 +568,7 @@ impl GameState {
             }
         }
 
-        Ok(self.game_history.history.push(action))
+        Ok(self.game_history.history.push_back(action))
     }
 
     /// Returns the status of the game
@@ -640,7 +641,7 @@ impl GameHistory {
     fn new(settings: Arc<Settings>) -> Self {
         Self {
             settings,
-            history: Vec::new(),
+            history: Vector::new(),
         }
     }
 
@@ -678,7 +679,7 @@ impl GameHistory {
     }
 
     fn undo(&mut self) -> Option<(Player, Action)> {
-        let action = self.history.pop();
+        let action = self.history.pop_back();
         action.map(|action| (self.whose_turn(), action))
     }
 }
