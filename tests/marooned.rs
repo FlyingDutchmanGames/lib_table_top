@@ -1,3 +1,4 @@
+use itertools::iterate;
 use lib_table_top::games::marooned::{
     Action, Col, Dimensions, GameState, Player::*, Position, Row, Settings, SettingsBuilder,
     SettingsError::*, Status::*,
@@ -31,7 +32,7 @@ fn test_dimensions() {
 
 #[test]
 fn test_making_a_few_moves() {
-    let mut game = GameState::new(Default::default());
+    let game = GameState::new(Default::default());
     assert_eq!(game.status(), InProgress);
     assert_eq!(game.whose_turn(), P1);
     assert_eq!(game.removed_positions().next(), None);
@@ -54,13 +55,13 @@ fn test_making_a_few_moves() {
 
     let position_to_remove = game.removable_positions().next().unwrap();
     let move_to = allowed_movements.first().unwrap().to_owned();
-    assert!(game
+    let game = game
         .make_move(Action {
             player: P1,
             remove: position_to_remove,
-            to: move_to
+            to: move_to,
         })
-        .is_ok());
+        .unwrap();
 
     assert_eq!(game.player_position(P1), move_to);
     assert_eq!(game.whose_turn(), P2);
@@ -86,37 +87,37 @@ fn test_make_a_new_game_from_settings_builder() {
 
 #[test]
 fn test_a_full_game() {
-    let mut game = SettingsBuilder::new().rows(3).cols(3).build_game().unwrap();
+    let game = SettingsBuilder::new().rows(3).cols(3).build_game().unwrap();
 
-    loop {
-        match game.status() {
-            InProgress => {
-                assert!(
-                    game.allowed_movement_targets_for_player(game.whose_turn())
-                        .next()
-                        != None
-                );
-
-                // all valid actions are valid!
-                for action in game.valid_actions() {
-                    let mut new_game = game.clone();
-                    assert!(new_game.make_move(action).is_ok());
-                }
-
-                let action = game.valid_actions().next().unwrap();
-                assert!(game.make_move(action).is_ok());
-            }
-            Win { player } => {
-                assert_eq!(player, game.whose_turn().opponent());
-                assert_eq!(
-                    game.allowed_movement_targets_for_player(game.whose_turn())
-                        .collect::<Vec<Position>>(),
-                    vec![]
-                );
-                break;
-            }
+    let _ = iterate(game, |game| {
+        // all valid actions are valid!
+        for action in game.valid_actions() {
+            assert!(game.make_move(action).is_ok());
         }
-    }
+
+        match game.valid_actions().next() {
+            Some(action) => game.make_move(action).unwrap(),
+            None => game.clone(),
+        }
+    })
+    .inspect(|game| match game.status() {
+        InProgress => {
+            let target = game
+                .allowed_movement_targets_for_player(game.whose_turn())
+                .next();
+            assert!(target != None);
+        }
+        Win { player } => {
+            assert_eq!(player, game.whose_turn().opponent());
+            assert_eq!(
+                game.allowed_movement_targets_for_player(game.whose_turn())
+                    .collect::<Vec<Position>>(),
+                vec![]
+            );
+        }
+    })
+    .take_while(|game| game.status() == InProgress)
+    .collect::<Vec<GameState>>();
 }
 
 #[test]
@@ -173,19 +174,17 @@ fn test_serializing_settings() {
 
 #[test]
 fn test_serializing_game_state() {
-    let mut game: GameState = SettingsBuilder::new()
+    let game: GameState = SettingsBuilder::new()
         .starting_removed_positions(vec![(Col(0), Row(0))])
         .build_game()
         .unwrap();
 
-    let actions: Vec<Action> = vec![(); 3]
-        .iter()
-        .map(|_| {
-            let action = game.valid_actions().next().unwrap();
-            assert!(game.make_move(action).is_ok());
-            action
-        })
-        .collect();
+    let (game, actions) = (1..=3).fold((game, vec![]), |(game, mut actions), _| {
+        let action = game.valid_actions().next().unwrap();
+        let game = game.make_move(action).unwrap();
+        actions.push(action);
+        (game, actions)
+    });
 
     let serialized = serde_json::to_value(&game).unwrap();
     assert_eq!(

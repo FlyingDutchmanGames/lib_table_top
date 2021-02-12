@@ -1,6 +1,8 @@
 use enum_map::EnumMap;
+use im::Vector;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// A row value inside of a position (y coordinate)
@@ -359,8 +361,8 @@ use Status::*;
 /// The game state
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameState {
-    settings: Settings,
-    history: Vec<Action>,
+    settings: Arc<Settings>,
+    history: Vector<Action>,
 }
 
 impl GameState {
@@ -368,8 +370,8 @@ impl GameState {
     /// construct a new game
     pub fn new(settings: Settings) -> Self {
         Self {
-            settings,
-            history: vec![],
+            settings: Arc::new(settings),
+            history: Vector::new(),
         }
     }
 
@@ -427,20 +429,20 @@ impl GameState {
     /// ```
     /// use lib_table_top::games::marooned::{GameState, Action};
     ///
-    /// let mut game: GameState = Default::default();
+    /// let game: GameState = Default::default();
     ///
     /// // History starts empty
     /// assert_eq!(game.history().count(), 0);
     ///
     /// // Apply some actions
     /// let action_1 = game.valid_actions().next().unwrap();
-    /// assert!(game.make_move(action_1).is_ok());
+    /// let game = game.make_move(action_1).unwrap();
     ///
     /// let action_2 = game.valid_actions().next().unwrap();
-    /// assert!(game.make_move(action_2).is_ok());
+    /// let game = game.make_move(action_2).unwrap();
     ///
     /// let action_3 = game.valid_actions().next().unwrap();
-    /// assert!(game.make_move(action_3).is_ok());
+    /// let game = game.make_move(action_3).unwrap();
     ///
     /// // `game.history()` is an iterator over the actions in order
     /// assert_eq!(
@@ -448,7 +450,7 @@ impl GameState {
     ///   vec![&action_1, &action_2, &action_3]
     /// )
     /// ```
-    pub fn history(&self) -> impl Iterator<Item = &Action> + Clone {
+    pub fn history(&self) -> impl Iterator<Item = &Action> {
         self.history.iter()
     }
 
@@ -467,7 +469,7 @@ impl GameState {
     /// let removed: Vec<Position> = game.removed_positions().collect();
     /// assert_eq!(removed, vec![pos]);
     /// ```
-    pub fn removed_positions(&self) -> impl Iterator<Item = Position> + Clone + '_ {
+    pub fn removed_positions(&self) -> impl Iterator<Item = Position> + '_ {
         self.settings
             .starting_removed_positions
             .iter()
@@ -631,7 +633,7 @@ impl GameState {
     /// ```
     /// use lib_table_top::games::marooned::{Action, GameState, ActionError, Row, Col, Player::*};
     ///
-    /// let mut game: GameState = Default::default();
+    /// let game: GameState = Default::default();
     /// let valid_action = game.valid_actions().next().unwrap();
     ///
     /// // You can't make a move with the wrong player
@@ -659,10 +661,10 @@ impl GameState {
     ///     Err(ActionError::InvalidRemove { target: (Col(100), Row(100)) })
     /// );
     ///
-    /// // Any valid action advances the game and returns Ok(())
+    /// // Any valid action advances the game and returns Ok(GameState)
     /// assert!(game.make_move(valid_action).is_ok());
     /// ```
-    pub fn make_move(&mut self, action: Action) -> Result<(), ActionError> {
+    pub fn make_move(&self, action: Action) -> Result<Self, ActionError> {
         if action.to == action.remove {
             return Err(CantRemoveTheSamePositionAsMoveTo { target: action.to });
         }
@@ -688,7 +690,9 @@ impl GameState {
                 target: action.remove,
             });
         }
-        Ok(self.history.push(action))
+        let mut new_game = self.clone();
+        new_game.history.push_back(action);
+        Ok(new_game)
     }
 
     /// Allows you to undo the the most recent action, returning the action.
@@ -698,19 +702,22 @@ impl GameState {
     ///
     /// // New games have no actions to undo
     /// let mut game: GameState = Default::default();
-    /// assert_eq!(game.undo(), None);
+    /// let (_, action) = game.undo();
+    /// assert_eq!(action, None);
     ///
     /// // You can undo the actions you've made
     /// let next_move = game.valid_actions().next().unwrap();
-    /// let original = game.clone();
-    /// game.make_move(next_move);
+    /// let new_game = game.make_move(next_move).unwrap();
     ///
-    /// assert!(original != game);
-    /// assert_eq!(game.undo(), Some(next_move));
-    /// assert!(original == game);
+    /// assert!(new_game != game);
+    /// let (new_new_game, action) = new_game.undo();
+    /// assert_eq!(action, Some(next_move));
+    /// assert!(game == new_new_game);
     /// ```
-    pub fn undo(&mut self) -> Option<Action> {
-        self.history.pop()
+    pub fn undo(&self) -> (Self, Option<Action>) {
+        let mut new_game = self.clone();
+        let action = new_game.history.pop_back();
+        (new_game, action)
     }
 }
 
@@ -832,7 +839,7 @@ mod tests {
 
     #[test]
     fn test_you_cant_remove_and_move_to_the_same_position() {
-        let mut game = GameState::new(Default::default());
+        let game = GameState::new(Default::default());
         let pos = (Col(1), Row(0));
 
         assert_eq!(
@@ -847,7 +854,7 @@ mod tests {
 
     #[test]
     fn test_you_cant_move_if_its_not_your_turn() {
-        let mut game = GameState::new(Default::default());
+        let game = GameState::new(Default::default());
 
         assert_eq!(
             game.make_move(Action {
@@ -861,7 +868,7 @@ mod tests {
 
     #[test]
     fn test_you_cant_move_into_a_non_adjacent_position() {
-        let mut game = SettingsBuilder::new()
+        let game = SettingsBuilder::new()
             .p1_starting((Col(0), Row(0)))
             .build_game()
             .unwrap();
@@ -891,7 +898,7 @@ mod tests {
     #[test]
     fn test_you_cant_remove_an_already_removed_position() {
         let remove = (Col(1), Row(1));
-        let mut game = SettingsBuilder::new()
+        let game = SettingsBuilder::new()
             .starting_removed_positions(vec![remove])
             .build_game()
             .unwrap();

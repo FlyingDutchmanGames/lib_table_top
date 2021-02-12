@@ -1,4 +1,5 @@
 use enum_map::EnumMap;
+use im::Vector;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
 use thiserror::Error;
@@ -114,7 +115,7 @@ use Status::*;
 /// Representation of a Tic-Tac-Toe game
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameState {
-    history: Vec<Position>,
+    history: Vector<Position>,
 }
 
 impl Default for GameState {
@@ -134,7 +135,7 @@ impl GameState {
     /// ```
     pub fn new() -> Self {
         GameState {
-            history: Vec::with_capacity(9),
+            history: Vector::new(),
         }
     }
 
@@ -143,18 +144,18 @@ impl GameState {
     /// ```
     /// use lib_table_top::games::tic_tac_toe::{Action, GameState};
     ///
-    /// let mut game: GameState = Default::default();
+    /// let game: GameState = Default::default();
     ///
     /// // The history starts empty
     /// assert!(game.history().count() == 0);
     ///
     /// // THe history can be iterated in order
     /// let action1 = game.valid_actions().next().unwrap();
-    /// assert!(game.make_move(action1).is_ok());
+    /// let game = game.make_move(action1).unwrap();
     /// let action2 = game.valid_actions().next().unwrap();
-    /// assert!(game.make_move(action2).is_ok());
+    /// let game = game.make_move(action2).unwrap();
     /// let action3 = game.valid_actions().next().unwrap();
-    /// assert!(game.make_move(action3).is_ok());
+    /// let game = game.make_move(action3).unwrap();
     ///
     /// assert_eq!(game.history().count(), 3);
     /// assert_eq!(
@@ -162,7 +163,7 @@ impl GameState {
     ///   vec![action1, action2, action3]
     /// )
     /// ```
-    pub fn history(&self) -> impl Iterator<Item = Action> + Clone + '_ {
+    pub fn history(&self) -> impl Iterator<Item = Action> + '_ {
         let players = [X, O].iter().cycle();
         self.history
             .iter()
@@ -174,7 +175,7 @@ impl GameState {
     /// ```
     /// use lib_table_top::games::tic_tac_toe::{GameState, Row, Row::*, Col, Col::*, Player::*};
     ///
-    /// let mut game: GameState = Default::default();
+    /// let game: GameState = Default::default();
     ///
     /// // All spaces are empty on a new game
     /// let board = game.board();
@@ -187,7 +188,7 @@ impl GameState {
     ///
     /// // After making moves they're returned in the board
     /// assert_eq!(game.board()[Col1][Row1], None);
-    /// assert!(game.make_move((X, (Col1, Row1))).is_ok());
+    /// let game = game.make_move((X, (Col1, Row1))).unwrap();
     /// assert_eq!(game.board()[Col1][Row1], Some(X));
     /// ```
     pub fn board(&self) -> Board {
@@ -204,7 +205,7 @@ impl GameState {
     /// ```
     /// use lib_table_top::games::tic_tac_toe::GameState;
     ///
-    /// let mut game: GameState = Default::default();
+    /// let game: GameState = Default::default();
     /// let board = game.board();
     ///
     /// for (col, row) in game.available() {
@@ -215,7 +216,7 @@ impl GameState {
     /// assert_eq!(game.available().count(), 9);
     ///
     /// let action = game.valid_actions().next().unwrap();
-    /// assert!(game.make_move(action).is_ok());
+    /// let game = game.make_move(action).unwrap();
     ///
     /// assert_eq!(game.available().count(), 8);
     /// ```
@@ -257,12 +258,12 @@ impl GameState {
     /// use lib_table_top::games::tic_tac_toe::{GameState, Player::*};
     ///
     /// // Games always start with `X`
-    /// let mut game: GameState = Default::default();
+    /// let game: GameState = Default::default();
     /// assert_eq!(game.whose_turn(), X);
     ///
     /// // After X moves, it's O's turn
     /// let action = game.valid_actions().next().unwrap();
-    /// assert!(game.make_move(action).is_ok());
+    /// let game = game.make_move(action).unwrap();
     ///
     /// assert_eq!(game.whose_turn(), O);
     /// ```
@@ -315,24 +316,28 @@ impl GameState {
     /// use lib_table_top::games::tic_tac_toe::GameState;
     ///
     /// // A new game has no history, so there is nothing to do
-    /// let mut game: GameState = Default::default();
-    /// assert_eq!(game.undo(), None);
+    /// let game: GameState = Default::default();
+    /// let (game, action) = game.undo();
+    /// assert_eq!(action, None);
     ///
     /// // You can undo actions
     /// let original_game = game.clone();
     /// assert!(game == original_game);
     ///
     /// let action = game.valid_actions().next().unwrap();
-    /// assert!(game.make_move(action).is_ok());
+    /// let game = game.make_move(action).unwrap();
     /// assert!(game != original_game);
     ///
-    /// assert_eq!(game.undo(), Some(action));
+    /// let (game, undid_action) = game.undo();
+    /// assert_eq!(undid_action, Some(action));
     /// assert_eq!(game, original_game);
     /// ```
-    pub fn undo(&mut self) -> Option<Action> {
+    pub fn undo(&self) -> (Self, Option<Action>) {
         // NGL, this one is tricky, because once you pop(), it switches whose turn it is.
-        let current_player = self.whose_turn().opponent();
-        self.history.pop().map(|pos| (current_player, pos))
+        let mut new_game = self.clone();
+        let player = self.whose_turn().opponent();
+        let action = new_game.history.pop_back().map(|pos| (player, pos));
+        (new_game, action)
     }
 
     /// Apply an action to the game, returns nothing if successful, and returns an error and
@@ -342,7 +347,7 @@ impl GameState {
     ///   GameState, Error::*, Player::*, Row::*, Col::*
     /// };
     ///
-    /// let mut game: GameState = Default::default();
+    /// let game: GameState = Default::default();
     ///
     /// // If the wrong player tries to make a move
     /// let result = game.make_move((game.whose_turn().opponent(), (Col0, Row0)));
@@ -353,6 +358,7 @@ impl GameState {
     /// let pos = (Col0, Row0);
     /// let result = game.make_move((game.whose_turn(), pos));
     /// assert!(result.is_ok());
+    /// let game = result.unwrap();
     ///
     /// // Trying to make a move on a taken space yields an error
     /// assert!(!game.available().any(|x| x == pos));
@@ -360,7 +366,7 @@ impl GameState {
     /// assert_eq!(result, Err(SpaceIsTaken { attempted: pos }));
     /// assert_eq!(&result.unwrap_err().to_string(), "space (Col0, Row0) is taken");
     /// ```
-    pub fn make_move(&mut self, (player, position): Action) -> Result<(), Error> {
+    pub fn make_move(&self, (player, position): Action) -> Result<Self, Error> {
         if self.is_position_taken(&position) {
             return Err(SpaceIsTaken {
                 attempted: position,
@@ -368,7 +374,9 @@ impl GameState {
         }
 
         if player == self.whose_turn() {
-            Ok(self.history.push(position))
+            let mut new_game_state = self.clone();
+            new_game_state.history.push_back(position);
+            Ok(new_game_state)
         } else {
             Err(OtherPlayerTurn { attempted: player })
         }
