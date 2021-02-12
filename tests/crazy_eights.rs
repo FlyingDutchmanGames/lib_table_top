@@ -4,13 +4,14 @@ use lib_table_top::games::crazy_eights::{
     GameHistory, GameState, NumberOfPlayers, PlayerView, Settings,
 };
 use serde_json::json;
+use std::sync::Arc;
 
 #[test]
 fn test_serializing_crazy_eights_player_view() {
-    let settings = Settings {
+    let settings = Arc::new(Settings {
         seed: RngSeed([0; 32]),
         number_of_players: NumberOfPlayers::Three,
-    };
+    });
     let mut game = GameState::new(settings);
 
     let action = game.current_player_view().valid_actions().pop().unwrap();
@@ -53,10 +54,10 @@ fn test_serializing_crazy_eights_player_view() {
 
 #[test]
 fn test_serializing_and_deserializing_crazy_eights_game_history() {
-    let settings = Settings {
+    let settings = Arc::new(Settings {
         seed: RngSeed([0; 32]),
         number_of_players: NumberOfPlayers::Three,
-    };
+    });
     let mut game = GameState::new(settings);
 
     let serialized = serde_json::to_value(game.game_history()).unwrap();
