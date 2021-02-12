@@ -512,27 +512,7 @@ impl GameState {
     /// );
     /// ```
     pub fn make_move(&mut self, (player, action): (Player, Action)) -> Result<(), ActionError> {
-        let whose_turn = self.whose_turn();
-        if player != whose_turn {
-            return Err(NotPlayerTurn {
-                attempted_player: player,
-                correct_player: whose_turn,
-            });
-        }
-
-        if let Play(Card(Rank::Eight, suit)) = action {
-            return Err(CantPlayEightAsRegularCard {
-                card: Card(Rank::Eight, suit),
-            });
-        }
-
-        if let PlayEight(Card(rank, suit), _) = action {
-            if rank != Rank::Eight {
-                return Err(CantPlayNonEightAsEight {
-                    card: Card(rank, suit),
-                });
-            }
-        }
+        self.validate_action_structure((player, action))?;
 
         match action {
             Draw => {
@@ -635,6 +615,35 @@ impl GameState {
     fn valid_to_play(&self, Card(rank, suit): &Card) -> bool {
         let Card(current_rank, _suit) = self.top_card;
         rank == &Rank::Eight || rank == &current_rank || suit == &self.current_suit
+    }
+
+    fn validate_action_structure(
+        &self,
+        (player, action): (Player, Action),
+    ) -> Result<(), ActionError> {
+        let whose_turn = self.whose_turn();
+        if player != whose_turn {
+            return Err(NotPlayerTurn {
+                attempted_player: player,
+                correct_player: whose_turn,
+            });
+        }
+
+        if let Play(Card(Rank::Eight, suit)) = action {
+            return Err(CantPlayEightAsRegularCard {
+                card: Card(Rank::Eight, suit),
+            });
+        }
+
+        if let PlayEight(Card(rank, suit), _) = action {
+            if rank != Rank::Eight {
+                return Err(CantPlayNonEightAsEight {
+                    card: Card(rank, suit),
+                });
+            }
+        }
+
+        Ok(())
     }
 }
 
