@@ -90,7 +90,7 @@ pub struct GameHistory {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GameState {
     game_history: GameHistory,
-    rng: ChaCha20Rng,
+    rng: Arc<ChaCha20Rng>,
     discarded: Vec<Card>,
     hands: HashMap<Player, Vec<Card>>,
     draw_pile: Vec<Card>,
@@ -281,7 +281,7 @@ impl GameState {
                 settings,
                 history: Vector::new(),
             },
-            rng,
+            rng: Arc::new(rng),
             draw_pile,
             hands,
             top_card,
@@ -548,10 +548,12 @@ impl GameState {
                     return Err(CantDrawWhenYouHavePlayableCards { player, playable });
                 }
 
+                let mut new_rng = (*self.rng).to_owned();
                 if self.draw_pile.is_empty() {
                     self.draw_pile.append(&mut self.discarded);
-                    self.draw_pile.shuffle(&mut self.rng);
+                    self.draw_pile.shuffle(&mut new_rng);
                 }
+                self.rng = Arc::new(new_rng);
 
                 self.hands
                     .entry(player)
