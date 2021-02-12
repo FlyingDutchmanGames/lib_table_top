@@ -311,7 +311,7 @@ impl GameState {
     /// let game = GameState::new(settings);
     /// assert!(equal(game.history(), vec![]));
     /// ```
-    pub fn history(&self) -> impl Iterator<Item = (Player, &Action)> + '_ {
+    pub fn history(&self) -> impl Iterator<Item = (Player, Action)> + '_ {
         self.game_history.history()
     }
 
@@ -649,18 +649,18 @@ impl GameHistory {
     pub fn game_state(&self) -> Result<GameState, ActionError> {
         let mut game_state = GameState::new(self.settings);
 
-        for (player, &action) in self.history() {
+        for (player, action) in self.history() {
             game_state.make_move((player, action))?
         }
 
         Ok(game_state)
     }
 
-    fn history(&self) -> impl Iterator<Item = (Player, &Action)> + '_ {
+    fn history(&self) -> impl Iterator<Item = (Player, Action)> + '_ {
         self.history
             .iter()
-            .zip((0..self.settings.number_of_players.to_int()).cycle())
-            .map(|(action, player_num)| (Player(player_num), action))
+            .zip(self.settings.number_of_players.players().cycle())
+            .map(|(&action, player)| (player, action))
     }
 
     fn whose_turn(&self) -> Player {
