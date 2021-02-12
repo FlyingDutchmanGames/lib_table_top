@@ -1,9 +1,8 @@
 use crate::rand::prelude::SliceRandom;
-use im::Vector;
+use im::{HashMap, Vector};
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
-use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -521,8 +520,8 @@ impl GameState {
                     return Err(CantDrawWhenYouHavePlayableCards { player, playable });
                 }
 
-                let mut new_rng = (*self.rng).clone();
                 if self.draw_pile.is_empty() {
+                    let mut new_rng = (*self.rng).clone();
                     let mut draw_pile: Vec<Card> = self
                         .draw_pile
                         .iter()
@@ -532,9 +531,9 @@ impl GameState {
                     self.draw_pile.extend(self.discarded.clone());
                     draw_pile.shuffle(&mut new_rng);
                     self.draw_pile = draw_pile.into();
+                    self.discarded = Vector::new();
+                    self.rng = Arc::new(new_rng);
                 }
-                self.discarded = Vector::new();
-                self.rng = Arc::new(new_rng);
 
                 self.hands
                     .entry(player)
