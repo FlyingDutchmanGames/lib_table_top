@@ -140,9 +140,8 @@ fn test_you_can_play_and_draw() {
         (X, (Col1, Row2)),
     ]
     .iter()
-    .fold(GameState::new(), |game, &action| {
-        game.make_move(action).unwrap()
-    });
+    .try_fold(GameState::new(), |game, &action| game.make_move(action))
+    .unwrap();
 
     assert_eq!(game.status(), Status::Draw);
 }
@@ -194,11 +193,8 @@ fn test_try_all_the_potential_wins() {
             (X, win[2]),
         ]
         .iter()
-        .fold(game, |game, &action| {
-            let result = game.make_move(action);
-            assert!(result.is_ok());
-            result.unwrap()
-        });
+        .try_fold(game, |game, &action| game.make_move(action))
+        .unwrap();
 
         assert_eq!(
             game.status(),
