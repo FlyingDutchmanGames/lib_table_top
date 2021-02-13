@@ -436,13 +436,13 @@ impl GameState {
     ///
     /// // Apply some actions
     /// let action_1 = game.valid_actions().next().unwrap();
-    /// let game = game.make_move(action_1).unwrap();
+    /// let game = game.apply_action(action_1).unwrap();
     ///
     /// let action_2 = game.valid_actions().next().unwrap();
-    /// let game = game.make_move(action_2).unwrap();
+    /// let game = game.apply_action(action_2).unwrap();
     ///
     /// let action_3 = game.valid_actions().next().unwrap();
-    /// let game = game.make_move(action_3).unwrap();
+    /// let game = game.apply_action(action_3).unwrap();
     ///
     /// // `game.history()` is an iterator over the actions in order
     /// assert_eq!(
@@ -570,7 +570,7 @@ impl GameState {
     ///
     /// let mut game: GameState = Default::default();
     /// let action: Action = game.valid_actions().next().unwrap();
-    /// assert!(game.make_move(action).is_ok());
+    /// assert!(game.apply_action(action).is_ok());
     /// ```
     pub fn valid_actions(&self) -> impl Iterator<Item = Action> + Clone + '_ {
         let player = self.whose_turn();
@@ -638,33 +638,33 @@ impl GameState {
     ///
     /// // You can't make a move with the wrong player
     /// assert_eq!(
-    ///     game.make_move(Action { player: valid_action.player.opponent(), ..valid_action}),
+    ///     game.apply_action(Action { player: valid_action.player.opponent(), ..valid_action}),
     ///     Err(ActionError::OtherPlayerTurn { attempted: valid_action.player.opponent() })
     /// );
     ///
     /// // You can't move to and remove the same position
     /// assert_eq!(
-    ///     game.make_move(Action { to: valid_action.remove, ..valid_action}),
+    ///     game.apply_action(Action { to: valid_action.remove, ..valid_action}),
     ///     Err(ActionError::CantRemoveTheSamePositionAsMoveTo { target: valid_action.remove }),
     /// );
     ///
     /// // You can't move to a non adjacent/removed/occupied square
     /// assert_eq!(
-    ///     game.make_move(Action { to: (Col(100), Row(100)), ..valid_action}),
+    ///     game.apply_action(Action { to: (Col(100), Row(100)), ..valid_action}),
     ///     Err(ActionError::InvalidMoveToTarget { target: (Col(100), Row(100)), player: P1})
     /// );
     ///
     /// // You can't remove a position that is already removed/off the board/where the other player
     /// // is standing
     /// assert_eq!(
-    ///     game.make_move(Action { remove: (Col(100), Row(100)), ..valid_action}),
+    ///     game.apply_action(Action { remove: (Col(100), Row(100)), ..valid_action}),
     ///     Err(ActionError::InvalidRemove { target: (Col(100), Row(100)) })
     /// );
     ///
     /// // Any valid action advances the game and returns Ok(GameState)
-    /// assert!(game.make_move(valid_action).is_ok());
+    /// assert!(game.apply_action(valid_action).is_ok());
     /// ```
-    pub fn make_move(&self, action: Action) -> Result<Self, ActionError> {
+    pub fn apply_action(&self, action: Action) -> Result<Self, ActionError> {
         if action.to == action.remove {
             return Err(CantRemoveTheSamePositionAsMoveTo { target: action.to });
         }
@@ -818,7 +818,7 @@ mod tests {
         let pos = (Col(1), Row(0));
 
         assert_eq!(
-            game.make_move(Action {
+            game.apply_action(Action {
                 player: P1,
                 to: pos,
                 remove: pos
@@ -832,7 +832,7 @@ mod tests {
         let game = GameState::new(Default::default());
 
         assert_eq!(
-            game.make_move(Action {
+            game.apply_action(Action {
                 player: P2,
                 to: (Col(1), Row(0)),
                 remove: (Col(1), Row(1))
@@ -848,7 +848,7 @@ mod tests {
             .build_game()
             .unwrap();
 
-        let result = game.make_move(Action {
+        let result = game.apply_action(Action {
             player: game.whose_turn(),
             to: (Col(3), Row(3)),
             remove: (Col(1), Row(1)),
@@ -879,7 +879,7 @@ mod tests {
             .unwrap();
 
         let action = game.valid_actions().next().unwrap();
-        let result = game.make_move(Action { remove, ..action });
+        let result = game.apply_action(Action { remove, ..action });
 
         assert_eq!(
             result,

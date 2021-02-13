@@ -56,7 +56,7 @@ fn test_making_a_few_moves() {
     let position_to_remove = game.removable_positions().next().unwrap();
     let move_to = allowed_movements.first().unwrap().to_owned();
     let game = game
-        .make_move(Action {
+        .apply_action(Action {
             player: P1,
             remove: position_to_remove,
             to: move_to,
@@ -92,11 +92,11 @@ fn test_a_full_game() {
     let _ = iterate(game, |game| {
         // all valid actions are valid!
         for action in game.valid_actions() {
-            assert!(game.make_move(action).is_ok());
+            assert!(game.apply_action(action).is_ok());
         }
 
         match game.valid_actions().next() {
-            Some(action) => game.make_move(action).unwrap(),
+            Some(action) => game.apply_action(action).unwrap(),
             None => game.clone(),
         }
     })
@@ -181,7 +181,7 @@ fn test_serializing_game_state() {
 
     let (game, actions) = (1..=3).fold((game, vec![]), |(game, mut actions), _| {
         let action = game.valid_actions().next().unwrap();
-        let game = game.make_move(action).unwrap();
+        let game = game.apply_action(action).unwrap();
         actions.push(action);
         (game, actions)
     });

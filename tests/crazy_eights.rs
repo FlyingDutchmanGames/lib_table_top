@@ -15,11 +15,11 @@ fn test_serializing_crazy_eights_player_view() {
 
     let action = game.current_player_view().valid_actions().pop().unwrap();
     let player = game.whose_turn();
-    let game = game.make_move((player, action)).unwrap();
+    let game = game.apply_action((player, action)).unwrap();
 
     let action = game.current_player_view().valid_actions().pop().unwrap();
     let player = game.whose_turn();
-    let game = game.make_move((player, action)).unwrap();
+    let game = game.apply_action((player, action)).unwrap();
 
     let expected = json!({
         "observer_view": {
@@ -75,11 +75,11 @@ fn test_serializing_and_deserializing_crazy_eights_game_history() {
 
     let action = game.current_player_view().valid_actions().pop().unwrap();
     let player = game.whose_turn();
-    let game = game.make_move((player, action)).unwrap();
+    let game = game.apply_action((player, action)).unwrap();
 
     let action = game.current_player_view().valid_actions().pop().unwrap();
     let player = game.whose_turn();
-    let game = game.make_move((player, action)).unwrap();
+    let game = game.apply_action((player, action)).unwrap();
 
     let serialized = serde_json::to_value(game.game_history()).unwrap();
     assert_eq!(
