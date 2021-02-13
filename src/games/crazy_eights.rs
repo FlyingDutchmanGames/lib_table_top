@@ -396,24 +396,56 @@ impl GameState {
     /// # }
     /// ```
     pub fn player_view(&self, player: Player) -> PlayerView {
-        let hand = self.hands[player].clone().into();
+        PlayerView {
+            player,
+            hand: self.hands[player].clone().into(),
+            observer_view: self.observer_view(),
+        }
+    }
 
+    /// Returns the view that any observer is allowed to see
+    /// ```
+    /// use lib_table_top::games::crazy_eights::{
+    ///   GameState, NumberOfPlayers, Player::*, PlayerView, Settings, ObserverView
+    /// };
+    ///
+    /// use std::collections::HashMap;
+    /// use lib_table_top::common::rand::RngSeed;
+    /// use lib_table_top::common::deck::card::{Card, suit::Suit::*, rank::Rank::*};
+    /// use im::{Vector, vector};
+    /// use std::sync::Arc;
+    ///
+    /// # use lib_table_top::games::crazy_eights::ActionError;
+    /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([0; 32])};
+    /// let game = GameState::new(Arc::new(settings));
+    /// let observer_view: ObserverView = game.observer_view();
+    ///
+    /// assert_eq!(observer_view, ObserverView {
+    ///     whose_turn: P0,
+    ///     discarded: Vector::new(),
+    ///     draw_pile_remaining: 36,
+    ///     top_card: Card(Four, Diamonds),
+    ///     current_suit: Diamonds,
+    ///     player_card_count: [
+    ///       (P0, 5),
+    ///       (P1, 5),
+    ///       (P2, 5),
+    ///     ].iter().copied().collect(),
+    ///   });
+    /// ```
+    pub fn observer_view(&self) -> ObserverView {
         let player_card_count: HashMap<Player, usize> = self
             .players()
             .map(|player| (player, self.hands[player].len()))
             .collect();
 
-        PlayerView {
-            hand,
-            player,
-            observer_view: ObserverView {
-                current_suit: self.current_suit,
-                discarded: self.discarded.clone(),
-                draw_pile_remaining: self.draw_pile.len() as u8,
-                player_card_count,
-                top_card: self.top_card,
-                whose_turn: self.game_history.whose_turn(),
-            },
+        ObserverView {
+            current_suit: self.current_suit,
+            discarded: self.discarded.clone(),
+            draw_pile_remaining: self.draw_pile.len() as u8,
+            player_card_count,
+            top_card: self.top_card,
+            whose_turn: self.game_history.whose_turn(),
         }
     }
 
