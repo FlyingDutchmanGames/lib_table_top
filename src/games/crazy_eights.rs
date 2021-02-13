@@ -462,10 +462,10 @@ impl GameState {
     /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([1; 32])};
     /// let game = GameState::new(Arc::new(settings));
     /// let action = game.current_player_view().valid_actions().pop().unwrap();
-    /// let game = game.make_move((P0, action)).unwrap();
+    /// let game = game.apply_action((P0, action)).unwrap();
     ///
     /// // Trying to play when it's not your turn is an error
-    /// let err = game.make_move((P2, Draw));
+    /// let err = game.apply_action((P2, Draw));
     /// assert_eq!(
     ///   err,
     ///   Err(NotPlayerTurn { attempted_player: P2, correct_player: P1 })
@@ -478,7 +478,7 @@ impl GameState {
     ///
     ///
     /// // Trying to play an eight as a regular card is illegal
-    /// let err = game.make_move((P1, Play(Card(Eight, Spades))));
+    /// let err = game.apply_action((P1, Play(Card(Eight, Spades))));
     /// assert_eq!(
     ///   err,
     ///   Err(CantPlayEightAsRegularCard { card: Card(Eight, Spades) })
@@ -490,7 +490,7 @@ impl GameState {
     /// );
     ///
     /// // Trying to play a non eight as an eight is illegal
-    /// let err = game.make_move((P1, PlayEight(Card(Seven, Spades), Hearts)));
+    /// let err = game.apply_action((P1, PlayEight(Card(Seven, Spades), Hearts)));
     /// assert_eq!(
     ///   err,
     ///   Err(CantPlayNonEightAsEight { card: Card(Seven, Spades) })
@@ -502,7 +502,7 @@ impl GameState {
     /// );
     ///
     /// // Trying to draw a card when you have a valid move isn't legal
-    /// let err = game.make_move((P1, Draw));
+    /// let err = game.apply_action((P1, Draw));
     /// assert_eq!(
     ///   err,
     ///   Err(CantDrawWhenYouHavePlayableCards {
@@ -517,7 +517,7 @@ impl GameState {
     /// );
     ///
     /// // Trying to play a card you don't have is an error
-    /// let err = game.make_move((P1, Play(Card(Jack, Spades))));
+    /// let err = game.apply_action((P1, Play(Card(Jack, Spades))));
     /// assert_eq!(
     ///   err,
     ///   Err(PlayerDoesNotHaveCard { player: P1, card: Card(Jack, Spades) })
@@ -529,7 +529,7 @@ impl GameState {
     /// );
     ///
     /// // Trying to play a card you have but doesn't follow suit is an error
-    /// let err = game.make_move((P1, Play(Card(Ten, Clubs))));
+    /// let err = game.apply_action((P1, Play(Card(Ten, Clubs))));
     /// assert_eq!(
     ///   err,
     ///   Err(CardCantBePlayed {
@@ -544,7 +544,7 @@ impl GameState {
     ///   "The Card Card(Ten, Clubs), can not be played when the current suit is Spades and rank is Nine",
     /// );
     /// ```
-    pub fn make_move(&self, (player, action): (Player, Action)) -> Result<Self, ActionError> {
+    pub fn apply_action(&self, (player, action): (Player, Action)) -> Result<Self, ActionError> {
         self.validate_action_structure((player, action))?;
         let mut new_game = self.clone();
 
@@ -600,7 +600,7 @@ impl GameState {
     ///   iterate(game, |game| {
     ///     let action: Action = game.current_player_view().valid_actions().pop().unwrap();
     ///     let player = game.whose_turn();
-    ///     game.make_move((player, action)).unwrap()
+    ///     game.apply_action((player, action)).unwrap()
     ///   })
     ///   .filter(|game| game.status() != InProgress)
     ///   .next()
@@ -721,7 +721,7 @@ impl GameHistory {
             .iter()
             .try_fold(game_state, |game_state, &action| {
                 let player = game_state.whose_turn();
-                game_state.make_move((player, action))
+                game_state.apply_action((player, action))
             })
     }
 

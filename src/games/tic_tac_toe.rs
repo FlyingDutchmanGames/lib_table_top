@@ -151,11 +151,11 @@ impl GameState {
     ///
     /// // THe history can be iterated in order
     /// let action1 = game.valid_actions().next().unwrap();
-    /// let game = game.make_move(action1).unwrap();
+    /// let game = game.apply_action(action1).unwrap();
     /// let action2 = game.valid_actions().next().unwrap();
-    /// let game = game.make_move(action2).unwrap();
+    /// let game = game.apply_action(action2).unwrap();
     /// let action3 = game.valid_actions().next().unwrap();
-    /// let game = game.make_move(action3).unwrap();
+    /// let game = game.apply_action(action3).unwrap();
     ///
     /// assert_eq!(game.history().count(), 3);
     /// assert_eq!(
@@ -188,7 +188,7 @@ impl GameState {
     ///
     /// // After making moves they're returned in the board
     /// assert_eq!(game.board()[Col1][Row1], None);
-    /// let game = game.make_move((X, (Col1, Row1))).unwrap();
+    /// let game = game.apply_action((X, (Col1, Row1))).unwrap();
     /// assert_eq!(game.board()[Col1][Row1], Some(X));
     /// ```
     pub fn board(&self) -> Board {
@@ -216,7 +216,7 @@ impl GameState {
     /// assert_eq!(game.available().count(), 9);
     ///
     /// let action = game.valid_actions().next().unwrap();
-    /// let game = game.make_move(action).unwrap();
+    /// let game = game.apply_action(action).unwrap();
     ///
     /// assert_eq!(game.available().count(), 8);
     /// ```
@@ -263,7 +263,7 @@ impl GameState {
     ///
     /// // After X moves, it's O's turn
     /// let action = game.valid_actions().next().unwrap();
-    /// let game = game.make_move(action).unwrap();
+    /// let game = game.apply_action(action).unwrap();
     ///
     /// assert_eq!(game.whose_turn(), O);
     /// ```
@@ -320,23 +320,23 @@ impl GameState {
     /// let game: GameState = Default::default();
     ///
     /// // If the wrong player tries to make a move
-    /// let result = game.make_move((game.whose_turn().opponent(), (Col0, Row0)));
+    /// let result = game.apply_action((game.whose_turn().opponent(), (Col0, Row0)));
     /// assert_eq!(result, Err(OtherPlayerTurn { attempted: O }));
     /// assert_eq!(&result.unwrap_err().to_string(), "not O's turn");
     ///
     /// // The correct player can make a move
     /// let pos = (Col0, Row0);
-    /// let result = game.make_move((game.whose_turn(), pos));
+    /// let result = game.apply_action((game.whose_turn(), pos));
     /// assert!(result.is_ok());
     /// let game = result.unwrap();
     ///
     /// // Trying to make a move on a taken space yields an error
     /// assert!(!game.available().any(|x| x == pos));
-    /// let result = game.make_move((game.whose_turn(), pos));
+    /// let result = game.apply_action((game.whose_turn(), pos));
     /// assert_eq!(result, Err(SpaceIsTaken { attempted: pos }));
     /// assert_eq!(&result.unwrap_err().to_string(), "space (Col0, Row0) is taken");
     /// ```
-    pub fn make_move(&self, (player, position): Action) -> Result<Self, Error> {
+    pub fn apply_action(&self, (player, position): Action) -> Result<Self, Error> {
         if self.is_position_taken(&position) {
             return Err(SpaceIsTaken {
                 attempted: position,

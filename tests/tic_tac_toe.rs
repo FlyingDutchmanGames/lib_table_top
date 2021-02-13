@@ -28,10 +28,10 @@ fn test_new() {
 }
 
 #[test]
-fn test_make_move() {
+fn test_apply_action() {
     let game_state = GameState::new();
     assert_eq!(game_state.whose_turn(), X);
-    let result = game_state.make_move((X, (Col1, Row1)));
+    let result = game_state.apply_action((X, (Col1, Row1)));
     assert!(result.is_ok());
     let game_state = result.unwrap();
     assert_eq!(
@@ -43,15 +43,15 @@ fn test_make_move() {
 
     let pos = (Col1, Row1);
     assert_eq!(
-        game_state.make_move((O, (Col1, Row1))),
+        game_state.apply_action((O, (Col1, Row1))),
         Err(SpaceIsTaken { attempted: pos })
     );
     assert_eq!(
-        game_state.make_move((X, (Col1, Row2))),
+        game_state.apply_action((X, (Col1, Row2))),
         Err(OtherPlayerTurn { attempted: X })
     );
 
-    let result = game_state.make_move((O, (Col2, Row2)));
+    let result = game_state.apply_action((O, (Col2, Row2)));
     assert!(result.is_ok());
     let game_state = result.unwrap();
     assert_eq!(
@@ -63,8 +63,8 @@ fn test_make_move() {
 #[test]
 fn test_you_cant_go_to_the_same_square_twice() {
     let position = (Col1, Row1);
-    let game = GameState::new().make_move((X, position)).unwrap();
-    let result = game.make_move((O, position));
+    let game = GameState::new().apply_action((X, position)).unwrap();
+    let result = game.apply_action((O, position));
     assert_eq!(
         result,
         Err(SpaceIsTaken {
@@ -77,9 +77,9 @@ fn test_you_cant_go_to_the_same_square_twice() {
 fn test_you_cant_go_twice_in_a_row() {
     let game = GameState::new();
     assert_eq!(game.whose_turn(), X);
-    let game = game.make_move((X, (Col1, Row1))).unwrap();
+    let game = game.apply_action((X, (Col1, Row1))).unwrap();
     assert_eq!(game.whose_turn(), O);
-    let result = game.make_move((X, (Col0, Row0)));
+    let result = game.apply_action((X, (Col0, Row0)));
     assert_eq!(result, Err(OtherPlayerTurn { attempted: X }));
 }
 
@@ -87,7 +87,7 @@ fn test_you_cant_go_twice_in_a_row() {
 fn test_you_can_get_the_board() {
     let game = GameState::new();
     assert_eq!(game.board(), enum_map! { _ => enum_map! { _ => None } });
-    let game = game.make_move((X, (Col1, Row1))).unwrap();
+    let game = game.apply_action((X, (Col1, Row1))).unwrap();
     assert_eq!(
         game.board(),
         enum_map! {
@@ -100,7 +100,7 @@ fn test_you_can_get_the_board() {
             }
         }
     );
-    let game = game.make_move((O, (Col1, Row0))).unwrap();
+    let game = game.apply_action((O, (Col1, Row0))).unwrap();
     assert_eq!(game.board()[Col1][Row0], Some(O));
 }
 
@@ -118,7 +118,7 @@ fn test_you_can_play_and_draw() {
         (X, (Col1, Row2)),
     ]
     .iter()
-    .try_fold(GameState::new(), |game, &action| game.make_move(action))
+    .try_fold(GameState::new(), |game, &action| game.apply_action(action))
     .unwrap();
 
     assert_eq!(game.status(), Status::Draw);
@@ -137,12 +137,12 @@ fn test_you_can_play_and_win() {
     ]
     .iter()
     .fold(game, |game, &action| {
-        let game = game.make_move(action).unwrap();
+        let game = game.apply_action(action).unwrap();
         assert_eq!(game.status(), Status::InProgress);
         game
     });
 
-    let game = game.make_move((X, (Col0, Row2))).unwrap();
+    let game = game.apply_action((X, (Col0, Row2))).unwrap();
     assert_eq!(
         game.status(),
         Status::Win {
@@ -171,7 +171,7 @@ fn test_try_all_the_potential_wins() {
             (X, win[2]),
         ]
         .iter()
-        .try_fold(game, |game, &action| game.make_move(action))
+        .try_fold(game, |game, &action| game.apply_action(action))
         .unwrap();
 
         assert_eq!(
@@ -194,7 +194,7 @@ fn test_serializing_tic_tac_toe() {
     let deserialized: GameState = serde_json::from_value(serialized).unwrap();
     assert_eq!(deserialized, game);
 
-    let game = game.make_move((X, (Col1, Row1))).unwrap();
+    let game = game.apply_action((X, (Col1, Row1))).unwrap();
 
     let serialized = serde_json::to_value(&game).unwrap();
     assert_eq!(serialized, json!({ "history": [[1, 1]] }));
@@ -202,7 +202,7 @@ fn test_serializing_tic_tac_toe() {
     let deserialized: GameState = serde_json::from_value(serialized).unwrap();
     assert_eq!(deserialized, game);
 
-    let game = game.make_move((O, (Col2, Row2))).unwrap();
+    let game = game.apply_action((O, (Col2, Row2))).unwrap();
 
     let serialized = serde_json::to_value(&game).unwrap();
     assert_eq!(serialized, json!({ "history": [[1, 1], [2, 2]] }));
