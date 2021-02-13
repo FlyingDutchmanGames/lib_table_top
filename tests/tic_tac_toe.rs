@@ -61,28 +61,6 @@ fn test_make_move() {
 }
 
 #[test]
-fn test_undoing_moves() {
-    let game_state = GameState::new();
-    assert_eq!(game_state.whose_turn(), X);
-    let game_state = game_state.make_move((X, (Col1, Row1))).unwrap();
-    assert_eq!(
-        game_state.history().collect::<Vec<(Player, Position)>>(),
-        vec![(X, (Col1, Row1))]
-    );
-
-    assert_eq!(game_state.whose_turn(), O);
-
-    // undo a made move
-    let (game_state, action) = game_state.undo();
-    assert_eq!(action, Some((X, (Col1, Row1))));
-    assert_eq!(game_state.whose_turn(), X);
-    assert_eq!(
-        game_state.history().collect::<Vec<(Player, Position)>>(),
-        vec![],
-    );
-}
-
-#[test]
 fn test_you_cant_go_to_the_same_square_twice() {
     let position = (Col1, Row1);
     let game = GameState::new().make_move((X, position)).unwrap();

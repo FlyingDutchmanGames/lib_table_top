@@ -694,31 +694,6 @@ impl GameState {
         new_game.history.push_back(action);
         Ok(new_game)
     }
-
-    /// Allows you to undo the the most recent action, returning the action.
-    /// It returns `None` on new games with no actions yet
-    /// ```
-    /// use lib_table_top::games::marooned::GameState;
-    ///
-    /// // New games have no actions to undo
-    /// let mut game: GameState = Default::default();
-    /// let (_, action) = game.undo();
-    /// assert_eq!(action, None);
-    ///
-    /// // You can undo the actions you've made
-    /// let next_move = game.valid_actions().next().unwrap();
-    /// let new_game = game.make_move(next_move).unwrap();
-    ///
-    /// assert!(new_game != game);
-    /// let (new_new_game, action) = new_game.undo();
-    /// assert_eq!(action, Some(next_move));
-    /// assert!(game == new_new_game);
-    /// ```
-    pub fn undo(&self) -> (Self, Option<Action>) {
-        let mut new_game = self.clone();
-        let action = new_game.history.pop_back();
-        (new_game, action)
-    }
 }
 
 impl GameState {
