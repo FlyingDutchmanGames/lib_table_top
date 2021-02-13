@@ -1,9 +1,10 @@
 use crate::rand::prelude::SliceRandom;
 use enum_map::EnumMap;
-use im::{HashMap, Vector};
+use im::Vector;
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
+use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -129,7 +130,7 @@ pub struct PlayerView {
     /// eights being played
     pub current_suit: Suit,
     /// Counts of the number of cards in each player's hand
-    pub player_card_count: HashMap<Player, u8>,
+    pub player_card_count: HashMap<Player, usize>,
     /// The number of cards in the draw pile
     pub draw_pile_remaining: u8,
 }
@@ -378,11 +379,6 @@ impl GameState {
     ///     (P0, 5),
     ///     (P1, 5),
     ///     (P2, 5),
-    ///     (P3, 0),
-    ///     (P4, 0),
-    ///     (P5, 0),
-    ///     (P6, 0),
-    ///     (P7, 0),
     ///   ].iter().copied().collect(),
     /// });
     /// # Ok(())
@@ -390,10 +386,10 @@ impl GameState {
     /// ```
     pub fn player_view(&self, player: Player) -> PlayerView {
         let hand = self.hands[player].clone().into();
-        let player_card_count: HashMap<Player, u8> = self
-            .hands
-            .iter()
-            .map(|(player, cards)| (player, cards.len() as u8))
+
+        let player_card_count: HashMap<Player, usize> = self
+            .players()
+            .map(|player| (player, self.hands[player].len()))
             .collect();
 
         PlayerView {
@@ -570,10 +566,7 @@ impl GameState {
     /// assert_eq!(game.status(), Win { player: P1 });
     /// ```
     pub fn status(&self) -> Status {
-        self.game_history()
-            .settings
-            .number_of_players
-            .players()
+        self.players()
             .filter(|&player| self.hands[player].is_empty())
             .map(|player| Win { player })
             .next()
@@ -636,6 +629,10 @@ impl GameState {
         }
 
         Ok(())
+    }
+
+    pub fn players(&self) -> impl Iterator<Item = Player> + Clone {
+        self.game_history.settings.number_of_players.players()
     }
 }
 
