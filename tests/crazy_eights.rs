@@ -1,9 +1,9 @@
-use lib_table_top::common::deck::card::Card;
 use lib_table_top::common::rand::RngSeed;
 use lib_table_top::games::crazy_eights::{
     GameHistory, GameState, NumberOfPlayers, PlayerView, Settings,
 };
 use serde_json::json;
+use std::sync::Arc;
 
 #[test]
 fn test_serializing_crazy_eights_player_view() {
@@ -11,7 +11,7 @@ fn test_serializing_crazy_eights_player_view() {
         seed: RngSeed([0; 32]),
         number_of_players: NumberOfPlayers::Three,
     };
-    let mut game = GameState::new(settings);
+    let mut game = GameState::new(Arc::new(settings));
 
     let action = game.current_player_view().valid_actions().pop().unwrap();
     let player = game.whose_turn();
@@ -47,7 +47,7 @@ fn test_serializing_crazy_eights_player_view() {
 
     // Def couldn't figure out how to go between PlayerView<Vec<Card>> to PlayerView<&[Card]> so
     // just test deserializing it again
-    let deserialized: PlayerView<Vec<Card>> = serde_json::from_value(serialized).unwrap();
+    let deserialized: PlayerView = serde_json::from_value(serialized).unwrap();
     assert_eq!(serde_json::to_value(deserialized).unwrap(), expected);
 }
 
@@ -57,7 +57,7 @@ fn test_serializing_and_deserializing_crazy_eights_game_history() {
         seed: RngSeed([0; 32]),
         number_of_players: NumberOfPlayers::Three,
     };
-    let mut game = GameState::new(settings);
+    let mut game = GameState::new(Arc::new(settings));
 
     let serialized = serde_json::to_value(game.game_history()).unwrap();
     assert_eq!(

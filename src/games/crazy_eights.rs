@@ -1,9 +1,9 @@
 use crate::rand::prelude::SliceRandom;
+use im::{HashMap, Vector};
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
-use std::collections::HashMap;
-use std::convert::AsRef;
+use std::sync::Arc;
 use thiserror::Error;
 
 use crate::common::deck::card::{rank::Rank, suit::Suit, Card};
@@ -81,17 +81,17 @@ pub struct Settings {
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameHistory {
-    settings: Settings,
-    history: Vec<Action>,
+    settings: Arc<Settings>,
+    history: Vector<Action>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GameState {
     game_history: GameHistory,
-    rng: ChaCha20Rng,
-    discarded: Vec<Card>,
+    rng: Arc<ChaCha20Rng>,
+    discarded: Vector<Card>,
     hands: HashMap<Player, Vec<Card>>,
-    draw_pile: Vec<Card>,
+    draw_pile: Vector<Card>,
     top_card: Card,
     current_suit: Suit,
 }
@@ -105,19 +105,16 @@ pub enum Status {
 use Status::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PlayerView<Container>
-where
-    Container: AsRef<[Card]>,
-{
+pub struct PlayerView {
     /// The player that this player view is related to, it should only be shown to this player
     pub player: Player,
     /// The player whose turn it is, may or may not be the same as the player this view is for. If
     /// it's not the view for the player whose turn it is, that player can't make a move
     pub whose_turn: Player,
     /// The cards in this player's hand
-    pub hand: Container,
+    pub hand: Vector<Card>,
     /// The discard pile, without the "top_card" that is currently being played on
-    pub discarded: Container,
+    pub discarded: Vector<Card>,
     /// The top card of the discard pile, this is the card that is next to be "played on"
     pub top_card: Card,
     /// The current suit to play, may or may not be the same as the suit of the top card, due to
@@ -129,10 +126,7 @@ where
     pub draw_pile_remaining: u8,
 }
 
-impl<Container> PlayerView<Container>
-where
-    Container: AsRef<[Card]>,
-{
+impl PlayerView {
     /// Returns the valid actions for a player. Player views are specific to a turn and player.
     /// There are no valid actions if it's not that player's turn
     /// ```
@@ -141,8 +135,9 @@ where
     ///   Action::*, GameState, NumberOfPlayers, Player, Settings
     /// };
     /// use lib_table_top::common::rand::RngSeed;
+    /// use std::sync::Arc;
     ///
-    /// let game = GameState::new(Settings { number_of_players: NumberOfPlayers::Two, seed: RngSeed([1; 32])});
+    /// let game = GameState::new(Arc::new(Settings { number_of_players: NumberOfPlayers::Two, seed: RngSeed([1; 32])}));
     ///
     /// // If it's not that player's turn the valid actions are empty
     /// let p1 = Player(1);
@@ -161,7 +156,6 @@ where
         if self.whose_turn == self.player {
             let playable: Vec<Action> = self
                 .hand
-                .as_ref()
                 .iter()
                 .flat_map(|card| match card {
                     Card(Rank::Eight, suit) => Suit::ALL
@@ -240,12 +234,13 @@ impl GameState {
     /// ```
     /// use lib_table_top::games::crazy_eights::{GameState, NumberOfPlayers, Player, Settings};
     /// use lib_table_top::common::rand::RngSeed;
+    /// use std::sync::Arc;
     ///
     /// let settings = Settings {number_of_players: NumberOfPlayers::Two, seed: RngSeed([0; 32])};
-    /// let game = GameState::new(settings);
+    /// let game = GameState::new(Arc::new(settings));
     /// assert_eq!(game.whose_turn(), Player(0));
     /// ```
-    pub fn new(settings: Settings) -> Self {
+    pub fn new(settings: Arc<Settings>) -> Self {
         let mut rng = settings.seed.into_rng();
         let mut cards: Vec<Card> = STANDARD_DECK.into();
         cards.shuffle(&mut rng);
@@ -275,14 +270,14 @@ impl GameState {
         Self {
             game_history: GameHistory {
                 settings,
-                history: Vec::new(),
+                history: Vector::new(),
             },
-            rng,
+            rng: Arc::new(rng),
             draw_pile,
             hands,
             top_card,
             current_suit: top_card.1,
-            discarded: vec![],
+            discarded: Vector::new(),
         }
     }
 
@@ -291,9 +286,10 @@ impl GameState {
     /// ```
     /// use lib_table_top::games::crazy_eights::{GameState, NumberOfPlayers, Player, Settings};
     /// use lib_table_top::common::rand::RngSeed;
+    /// use std::sync::Arc;
     ///
     /// let settings = Settings {number_of_players: NumberOfPlayers::Two, seed: RngSeed([0; 32])};
-    /// let game = GameState::new(settings);
+    /// let game = GameState::new(Arc::new(settings));
     /// assert_eq!(game.game_history().game_state(), Ok(game));
     /// ```
     pub fn game_history(&self) -> &GameHistory {
@@ -305,10 +301,11 @@ impl GameState {
     /// use lib_table_top::games::crazy_eights::{GameState, NumberOfPlayers, Settings};
     /// use lib_table_top::common::rand::RngSeed;
     /// use itertools::equal;
+    /// use std::sync::Arc;
     ///
     /// // A new game has an empty history
     /// let settings = Settings {number_of_players: NumberOfPlayers::Two, seed: RngSeed([0; 32])};
-    /// let game = GameState::new(settings);
+    /// let game = GameState::new(Arc::new(settings));
     /// assert!(equal(game.history(), vec![]));
     /// ```
     pub fn history(&self) -> impl Iterator<Item = (Player, Action)> + '_ {
@@ -319,9 +316,10 @@ impl GameState {
     /// ```
     /// use lib_table_top::games::crazy_eights::{GameState, NumberOfPlayers, Player, Settings};
     /// use lib_table_top::common::rand::RngSeed;
+    /// use std::sync::Arc;
     ///
     /// let settings = Settings {number_of_players: NumberOfPlayers::Two, seed: RngSeed([0; 32])};
-    /// let game = GameState::new(settings);
+    /// let game = GameState::new(Arc::new(settings));
     /// assert_eq!(game.whose_turn(), Player(0));
     /// ```
     pub fn whose_turn(&self) -> Player {
@@ -332,15 +330,16 @@ impl GameState {
     /// ```
     /// use lib_table_top::games::crazy_eights::{GameState, NumberOfPlayers, PlayerView, Settings};
     /// use lib_table_top::common::rand::RngSeed;
+    /// use std::sync::Arc;
     ///
     /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([0; 32])};
-    /// let game = GameState::new(settings);
+    /// let game = GameState::new(Arc::new(settings));
     /// assert_eq!(
     ///   game.player_view(game.whose_turn()),
     ///   game.current_player_view()
     /// );
     /// ```
-    pub fn current_player_view(&self) -> PlayerView<&[Card]> {
+    pub fn current_player_view(&self) -> PlayerView {
         self.player_view(self.whose_turn())
     }
 
@@ -354,25 +353,27 @@ impl GameState {
     /// use std::collections::HashMap;
     /// use lib_table_top::common::rand::RngSeed;
     /// use lib_table_top::common::deck::card::{Card, suit::Suit::*, rank::Rank::*};
+    /// use im::{Vector, vector};
+    /// use std::sync::Arc;
     ///
     /// # use lib_table_top::games::crazy_eights::ActionError;
     /// # fn main() -> Result<(), ActionError> {
     /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([0; 32])};
-    /// let game = GameState::new(settings);
-    /// let player_view: PlayerView<&[Card]> = game.player_view(Player(0));
+    /// let game = GameState::new(Arc::new(settings));
+    /// let player_view: PlayerView = game.player_view(Player(0));
     ///
     /// assert_eq!(player_view, PlayerView {
     ///   player: Player(0),
     ///   whose_turn: Player(0),
-    ///   discarded: vec![].as_slice(),
+    ///   discarded: Vector::new(),
     ///   draw_pile_remaining: 36,
-    ///   hand: vec![
+    ///   hand: vector![
     ///     Card(Ace, Diamonds),
     ///     Card(Five, Spades),
     ///     Card(Two, Hearts),
     ///     Card(Jack, Diamonds),
     ///     Card(King, Spades)
-    ///   ].as_slice(),
+    ///   ],
     ///   top_card: Card(Four, Diamonds),
     ///   current_suit: Diamonds,
     ///   player_card_count: [
@@ -384,12 +385,12 @@ impl GameState {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn player_view(&self, player: Player) -> PlayerView<&[Card]> {
-        let hand: &[Card] = self
+    pub fn player_view(&self, player: Player) -> PlayerView {
+        let hand = self
             .hands
             .get(&player)
-            .map(|hand| hand.as_slice())
-            .unwrap_or(&[]);
+            .map(|hand| hand.into())
+            .unwrap_or(Vector::new());
         let player_card_count: HashMap<Player, u8> = self
             .hands
             .iter()
@@ -398,7 +399,7 @@ impl GameState {
 
         PlayerView {
             current_suit: self.current_suit,
-            discarded: self.discarded.as_slice(),
+            discarded: self.discarded.clone(),
             draw_pile_remaining: self.draw_pile.len() as u8,
             hand,
             player,
@@ -415,10 +416,11 @@ impl GameState {
     /// };
     /// use lib_table_top::common::rand::RngSeed;
     /// use lib_table_top::common::deck::card::{Card, suit::Suit::*, rank::Rank::*};
+    /// use std::sync::Arc;
     ///
     /// // You can play a valid action
     /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([1; 32])};
-    /// let mut game = GameState::new(settings);
+    /// let mut game = GameState::new(Arc::new(settings));
     /// let action = game.current_player_view().valid_actions().pop().unwrap();
     /// assert!(game.make_move((Player(0), action)).is_ok());
     ///
@@ -503,27 +505,7 @@ impl GameState {
     /// );
     /// ```
     pub fn make_move(&mut self, (player, action): (Player, Action)) -> Result<(), ActionError> {
-        let whose_turn = self.whose_turn();
-        if player != whose_turn {
-            return Err(NotPlayerTurn {
-                attempted_player: player,
-                correct_player: whose_turn,
-            });
-        }
-
-        if let Play(Card(Rank::Eight, suit)) = action {
-            return Err(CantPlayEightAsRegularCard {
-                card: Card(Rank::Eight, suit),
-            });
-        }
-
-        if let PlayEight(Card(rank, suit), _) = action {
-            if rank != Rank::Eight {
-                return Err(CantPlayNonEightAsEight {
-                    card: Card(rank, suit),
-                });
-            }
-        }
+        self.validate_action_structure((player, action))?;
 
         match action {
             Draw => {
@@ -539,14 +521,24 @@ impl GameState {
                 }
 
                 if self.draw_pile.is_empty() {
-                    self.draw_pile.append(&mut self.discarded);
-                    self.draw_pile.shuffle(&mut self.rng);
+                    let mut new_rng = (*self.rng).clone();
+                    let mut draw_pile: Vec<Card> = self
+                        .draw_pile
+                        .iter()
+                        .chain(self.discarded.iter())
+                        .copied()
+                        .collect();
+                    self.draw_pile.extend(self.discarded.clone());
+                    draw_pile.shuffle(&mut new_rng);
+                    self.draw_pile = draw_pile.into();
+                    self.discarded = Vector::new();
+                    self.rng = Arc::new(new_rng);
                 }
 
                 self.hands
                     .entry(player)
                     .or_insert(vec![])
-                    .extend(self.draw_pile.pop().iter());
+                    .extend(self.draw_pile.pop_back().iter());
             }
             Play(card) => {
                 self.play_card(player, card)?;
@@ -557,8 +549,8 @@ impl GameState {
                 self.current_suit = suit;
             }
         }
-
-        Ok(self.game_history.history.push(action))
+        self.game_history.history.push_back(action);
+        Ok(())
     }
 
     /// Returns the status of the game
@@ -567,9 +559,10 @@ impl GameState {
     ///   Action, GameState, NumberOfPlayers, Status::*, Player, Settings
     /// };
     /// use lib_table_top::common::rand::RngSeed;
+    /// use std::sync::Arc;
     ///
     /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([1; 32])};
-    /// let mut game = GameState::new(settings);
+    /// let mut game = GameState::new(Arc::new(settings));
     /// assert_eq!(game.status(), InProgress);
     ///
     /// while InProgress == game.status() {
@@ -611,7 +604,7 @@ impl GameState {
         }
 
         let old_top_card = std::mem::replace(&mut self.top_card, card);
-        self.discarded.push(old_top_card);
+        self.discarded.push_back(old_top_card);
         self.hands
             .entry(player)
             .or_insert(vec![])
@@ -624,13 +617,42 @@ impl GameState {
         let Card(current_rank, _suit) = self.top_card;
         rank == &Rank::Eight || rank == &current_rank || suit == &self.current_suit
     }
+
+    fn validate_action_structure(
+        &self,
+        (player, action): (Player, Action),
+    ) -> Result<(), ActionError> {
+        let whose_turn = self.whose_turn();
+        if player != whose_turn {
+            return Err(NotPlayerTurn {
+                attempted_player: player,
+                correct_player: whose_turn,
+            });
+        }
+
+        if let Play(Card(Rank::Eight, suit)) = action {
+            return Err(CantPlayEightAsRegularCard {
+                card: Card(Rank::Eight, suit),
+            });
+        }
+
+        if let PlayEight(Card(rank, suit), _) = action {
+            if rank != Rank::Eight {
+                return Err(CantPlayNonEightAsEight {
+                    card: Card(rank, suit),
+                });
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl GameHistory {
-    fn new(settings: Settings) -> Self {
+    fn new(settings: Arc<Settings>) -> Self {
         Self {
             settings,
-            history: Vec::new(),
+            history: Vector::new(),
         }
     }
 
@@ -640,14 +662,14 @@ impl GameHistory {
     /// ```
     /// use lib_table_top::games::crazy_eights::{GameState, NumberOfPlayers, Player, Settings};
     /// use lib_table_top::common::rand::RngSeed;
-    ///
+    /// use std::sync::Arc;
     ///
     /// let settings = Settings {number_of_players: NumberOfPlayers::Two, seed: RngSeed([1; 32])};
-    /// let game = GameState::new(settings);
+    /// let game = GameState::new(Arc::new(settings));
     /// assert_eq!(game.game_history().game_state(), Ok(game));
     /// ```
     pub fn game_state(&self) -> Result<GameState, ActionError> {
-        let mut game_state = GameState::new(self.settings);
+        let mut game_state = GameState::new(self.settings.clone());
 
         for (player, action) in self.history() {
             game_state.make_move((player, action))?
@@ -667,8 +689,10 @@ impl GameHistory {
         Player((self.history.len() as u8) % self.settings.number_of_players.to_int())
     }
 
-    fn undo(&mut self) -> Option<(Player, Action)> {
-        let action = self.history.pop();
-        action.map(|action| (self.whose_turn(), action))
+    fn undo(&self) -> (Self, Option<(Player, Action)>) {
+        let mut game_history = self.clone();
+        let maybe_action = game_history.history.pop_back();
+        let maybe_action = maybe_action.map(|action| (game_history.whose_turn(), action));
+        (game_history, maybe_action)
     }
 }
