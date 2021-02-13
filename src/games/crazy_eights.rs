@@ -460,9 +460,9 @@ impl GameState {
     ///
     /// // You can play a valid action
     /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([1; 32])};
-    /// let mut game = GameState::new(Arc::new(settings));
+    /// let game = GameState::new(Arc::new(settings));
     /// let action = game.current_player_view().valid_actions().pop().unwrap();
-    /// assert!(game.make_move((P0, action)).is_ok());
+    /// let game = game.make_move((P0, action)).unwrap();
     ///
     /// // Trying to play when it's not your turn is an error
     /// let err = game.make_move((P2, Draw));
@@ -544,12 +544,13 @@ impl GameState {
     ///   "The Card Card(Ten, Clubs), can not be played when the current suit is Spades and rank is Nine",
     /// );
     /// ```
-    pub fn make_move(&mut self, (player, action): (Player, Action)) -> Result<(), ActionError> {
+    pub fn make_move(&self, (player, action): (Player, Action)) -> Result<Self, ActionError> {
         self.validate_action_structure((player, action))?;
+        let mut new_game = self.clone();
 
         match action {
             Draw => {
-                let playable: Vec<Card> = self
+                let playable: Vec<Card> = new_game
                     .player_hand(player)
                     .iter()
                     .filter(|card| self.valid_to_play(card))
@@ -560,34 +561,34 @@ impl GameState {
                     return Err(CantDrawWhenYouHavePlayableCards { player, playable });
                 }
 
-                if self.draw_pile.is_empty() {
-                    let mut new_rng = (*self.rng).clone();
+                if new_game.draw_pile.is_empty() {
+                    let mut new_rng = (*new_game.rng).clone();
                     let mut draw_pile: Vec<Card> = self
                         .draw_pile
                         .iter()
                         .chain(self.discarded.iter())
                         .copied()
                         .collect();
-                    self.draw_pile.extend(self.discarded.clone());
+                    new_game.draw_pile.extend(new_game.discarded.clone());
                     draw_pile.shuffle(&mut new_rng);
-                    self.draw_pile = draw_pile.into();
-                    self.discarded = Vector::new();
-                    self.rng = Arc::new(new_rng);
+                    new_game.draw_pile = draw_pile.into();
+                    new_game.discarded = Vector::new();
+                    new_game.rng = Arc::new(new_rng);
                 }
 
-                self.hands[player].extend(self.draw_pile.pop_back().iter());
+                new_game.hands[player].extend(new_game.draw_pile.pop_back().iter());
             }
             Play(card) => {
-                self.play_card(player, card)?;
-                self.current_suit = card.1;
+                new_game.play_card(player, card)?;
+                new_game.current_suit = card.1;
             }
             PlayEight(card, suit) => {
-                self.play_card(player, card)?;
-                self.current_suit = suit;
+                new_game.play_card(player, card)?;
+                new_game.current_suit = suit;
             }
         }
-        self.game_history.history.push_back(action);
-        Ok(())
+        new_game.game_history.history.push_back(action);
+        Ok(new_game)
     }
 
     /// Returns the status of the game
@@ -597,16 +598,24 @@ impl GameState {
     /// };
     /// use lib_table_top::common::rand::RngSeed;
     /// use std::sync::Arc;
+    /// use itertools::iterate;
     ///
-    /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([1; 32])};
-    /// let mut game = GameState::new(Arc::new(settings));
+    /// let settings = Settings {
+    ///   number_of_players: NumberOfPlayers::Three,
+    ///   seed: RngSeed([1; 32])
+    /// };
+    /// let game = GameState::new(Arc::new(settings));
     /// assert_eq!(game.status(), InProgress);
     ///
-    /// while InProgress == game.status() {
-    ///   let action: Action = game.current_player_view().valid_actions().pop().unwrap();
-    ///   let player = game.whose_turn();
-    ///   assert!(game.make_move((player, action)).is_ok());
-    /// }
+    /// let game =
+    ///   iterate(game, |game| {
+    ///     let action: Action = game.current_player_view().valid_actions().pop().unwrap();
+    ///     let player = game.whose_turn();
+    ///     game.make_move((player, action)).unwrap()
+    ///   })
+    ///   .filter(|game| game.status() != InProgress)
+    ///   .next()
+    ///   .unwrap();
     ///
     /// assert_eq!(game.status(), Win { player: P1 });
     /// ```
@@ -702,13 +711,14 @@ impl GameHistory {
     /// assert_eq!(game.game_history().game_state(), Ok(game));
     /// ```
     pub fn game_state(&self) -> Result<GameState, ActionError> {
-        let mut game_state = GameState::new(self.settings.clone());
+        let game_state = GameState::new(self.settings.clone());
 
-        for (player, action) in self.history() {
-            game_state.make_move((player, action))?
-        }
-
-        Ok(game_state)
+        self.history
+            .iter()
+            .try_fold(game_state, |game_state, &action| {
+                let player = game_state.whose_turn();
+                game_state.make_move((player, action))
+            })
     }
 
     fn history(&self) -> impl Iterator<Item = (Player, Action)> + '_ {
