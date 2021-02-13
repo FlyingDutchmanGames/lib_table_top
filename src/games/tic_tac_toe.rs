@@ -310,36 +310,6 @@ impl GameState {
 }
 
 impl GameState {
-    /// Undo the previous action and yield the action. Returns `None` if there is no previous
-    /// action
-    /// ```
-    /// use lib_table_top::games::tic_tac_toe::GameState;
-    ///
-    /// // A new game has no history, so there is nothing to do
-    /// let game: GameState = Default::default();
-    /// let (game, action) = game.undo();
-    /// assert_eq!(action, None);
-    ///
-    /// // You can undo actions
-    /// let original_game = game.clone();
-    /// assert!(game == original_game);
-    ///
-    /// let action = game.valid_actions().next().unwrap();
-    /// let game = game.make_move(action).unwrap();
-    /// assert!(game != original_game);
-    ///
-    /// let (game, undid_action) = game.undo();
-    /// assert_eq!(undid_action, Some(action));
-    /// assert_eq!(game, original_game);
-    /// ```
-    pub fn undo(&self) -> (Self, Option<Action>) {
-        // NGL, this one is tricky, because once you pop(), it switches whose turn it is.
-        let mut new_game = self.clone();
-        let player = self.whose_turn().opponent();
-        let action = new_game.history.pop_back().map(|pos| (player, pos));
-        (new_game, action)
-    }
-
     /// Apply an action to the game, returns nothing if successful, and returns an error and
     /// doesn't change the game state if there is an issue with the action
     /// ```

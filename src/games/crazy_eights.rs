@@ -680,11 +680,4 @@ impl GameHistory {
         let index = self.history.len() % (self.settings.number_of_players as usize);
         [P0, P1, P2, P3, P4, P5, P6, P7][index]
     }
-
-    fn undo(&self) -> (Self, Option<(Player, Action)>) {
-        let mut game_history = self.clone();
-        let maybe_action = game_history.history.pop_back();
-        let maybe_action = maybe_action.map(|action| (game_history.whose_turn(), action));
-        (game_history, maybe_action)
-    }
 }
