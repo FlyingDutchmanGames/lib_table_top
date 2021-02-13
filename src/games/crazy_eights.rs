@@ -1,4 +1,5 @@
 use crate::rand::prelude::SliceRandom;
+use enum_map::EnumMap;
 use im::{HashMap, Vector};
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
@@ -10,7 +11,7 @@ use crate::common::deck::card::{rank::Rank, suit::Suit, Card};
 use crate::common::deck::STANDARD_DECK;
 use crate::common::rand::RngSeed;
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Enum, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum Player {
     P0 = 0,
@@ -97,7 +98,7 @@ pub struct GameState {
     game_history: GameHistory,
     rng: Arc<ChaCha20Rng>,
     discarded: Vector<Card>,
-    hands: HashMap<Player, Vec<Card>>,
+    hands: EnumMap<Player, Vec<Card>>,
     draw_pile: Vector<Card>,
     top_card: Card,
     current_suit: Suit,
@@ -251,23 +252,14 @@ impl GameState {
         cards.shuffle(&mut rng);
         let mut deck = cards.into_iter();
 
-        let hands: HashMap<Player, Vec<Card>> = settings
+        let mut hands = enum_map! { _ => Vec::new() };
+
+        let num_cards_per_player = settings
             .number_of_players
-            .players()
-            .map(|player| {
-                (
-                    player,
-                    (&mut deck)
-                        .take(
-                            settings
-                                .number_of_players
-                                .starting_number_of_cards_per_player()
-                                as usize,
-                        )
-                        .collect(),
-                )
-            })
-            .collect();
+            .starting_number_of_cards_per_player();
+        for player in settings.number_of_players.players() {
+            hands[player] = (&mut deck).take(num_cards_per_player as usize).collect();
+        }
 
         // Can't fail because deck is 52 cards
         let top_card = deck.next().unwrap();
@@ -383,24 +375,25 @@ impl GameState {
     ///   top_card: Card(Four, Diamonds),
     ///   current_suit: Diamonds,
     ///   player_card_count: [
-    ///     (P0, 5u8),
-    ///     (P1, 5u8),
-    ///     (P2, 5u8)
+    ///     (P0, 5),
+    ///     (P1, 5),
+    ///     (P2, 5),
+    ///     (P3, 0),
+    ///     (P4, 0),
+    ///     (P5, 0),
+    ///     (P6, 0),
+    ///     (P7, 0),
     ///   ].iter().copied().collect(),
     /// });
     /// # Ok(())
     /// # }
     /// ```
     pub fn player_view(&self, player: Player) -> PlayerView {
-        let hand = self
-            .hands
-            .get(&player)
-            .map(|hand| hand.into())
-            .unwrap_or(Vector::new());
+        let hand = self.hands[player].clone().into();
         let player_card_count: HashMap<Player, u8> = self
             .hands
             .iter()
-            .map(|(player, cards)| (*player, cards.len() as u8))
+            .map(|(player, cards)| (player, cards.len() as u8))
             .collect();
 
         PlayerView {
@@ -541,10 +534,7 @@ impl GameState {
                     self.rng = Arc::new(new_rng);
                 }
 
-                self.hands
-                    .entry(player)
-                    .or_insert(vec![])
-                    .extend(self.draw_pile.pop_back().iter());
+                self.hands[player].extend(self.draw_pile.pop_back().iter());
             }
             Play(card) => {
                 self.play_card(player, card)?;
@@ -580,20 +570,18 @@ impl GameState {
     /// assert_eq!(game.status(), Win { player: P1 });
     /// ```
     pub fn status(&self) -> Status {
-        self.hands
-            .iter()
-            .filter(|(_player, hand)| hand.is_empty())
-            .map(|(&player, _hand)| Win { player })
+        self.game_history()
+            .settings
+            .number_of_players
+            .players()
+            .filter(|&player| self.hands[player].is_empty())
+            .map(|player| Win { player })
             .next()
             .unwrap_or(InProgress)
     }
 
     fn player_hand(&self, player: Player) -> &[Card] {
-        &self
-            .hands
-            .get(&player)
-            .map(|hand| hand.as_slice())
-            .unwrap_or(&[])
+        &self.hands[player].as_slice()
     }
 
     fn play_card(&mut self, player: Player, card: Card) -> Result<(), ActionError> {
@@ -611,10 +599,7 @@ impl GameState {
 
         let old_top_card = std::mem::replace(&mut self.top_card, card);
         self.discarded.push_back(old_top_card);
-        self.hands
-            .entry(player)
-            .or_insert(vec![])
-            .retain(|c| c != &card);
+        self.hands[player].retain(|c| c != &card);
 
         Ok(())
     }

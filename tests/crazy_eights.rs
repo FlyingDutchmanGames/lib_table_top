@@ -39,6 +39,11 @@ fn test_serializing_crazy_eights_player_view() {
             "P0": 4,
             "P1": 4,
             "P2": 5,
+            "P3": 0,
+            "P4": 0,
+            "P5": 0,
+            "P6": 0,
+            "P7": 0,
         }
     });
 
