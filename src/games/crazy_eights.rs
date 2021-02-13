@@ -1,9 +1,10 @@
 use crate::rand::prelude::SliceRandom;
 use enum_map::EnumMap;
-use im::{HashMap, Vector};
+use im::Vector;
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
+use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -113,25 +114,31 @@ pub enum Status {
 use Status::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PlayerView {
-    /// The player that this player view is related to, it should only be shown to this player
-    pub player: Player,
+pub struct ObserverView {
     /// The player whose turn it is, may or may not be the same as the player this view is for. If
     /// it's not the view for the player whose turn it is, that player can't make a move
     pub whose_turn: Player,
-    /// The cards in this player's hand
-    pub hand: Vector<Card>,
+    /// The current suit to play, may or may not be the same as the suit of the top card, due to
+    /// eights being played
+    pub current_suit: Suit,
     /// The discard pile, without the "top_card" that is currently being played on
     pub discarded: Vector<Card>,
     /// The top card of the discard pile, this is the card that is next to be "played on"
     pub top_card: Card,
-    /// The current suit to play, may or may not be the same as the suit of the top card, due to
-    /// eights being played
-    pub current_suit: Suit,
     /// Counts of the number of cards in each player's hand
-    pub player_card_count: HashMap<Player, u8>,
+    pub player_card_count: HashMap<Player, usize>,
     /// The number of cards in the draw pile
     pub draw_pile_remaining: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlayerView {
+    /// The player that this player view is related to, it should only be shown to this player
+    pub player: Player,
+    /// The cards in this player's hand
+    pub hand: Vector<Card>,
+    /// The view that any observer can see, the totally non secret parts of the game
+    pub observer_view: ObserverView,
 }
 
 impl PlayerView {
@@ -159,7 +166,7 @@ impl PlayerView {
     /// ]);
     /// ```
     pub fn valid_actions(&self) -> Vec<Action> {
-        if self.whose_turn == self.player {
+        if self.observer_view.whose_turn == self.player {
             let playable: Vec<Action> = self
                 .hand
                 .iter()
@@ -169,7 +176,10 @@ impl PlayerView {
                         .cloned()
                         .map(move |s| PlayEight(Card(Rank::Eight, *suit), s))
                         .collect(),
-                    Card(rank, suit) if rank == &self.top_card.0 || suit == &self.current_suit => {
+                    Card(rank, suit)
+                        if rank == &self.observer_view.top_card.0
+                            || suit == &self.observer_view.current_suit =>
+                    {
                         vec![Play(Card(*rank, *suit))]
                     }
                     Card(_, _) => {
@@ -345,7 +355,7 @@ impl GameState {
     /// show the game to a particular player and have them decide on their action
     /// ```
     /// use lib_table_top::games::crazy_eights::{
-    ///   GameState, NumberOfPlayers, Player::*, PlayerView, Settings
+    ///   GameState, NumberOfPlayers, Player::*, PlayerView, Settings, ObserverView
     /// };
     ///
     /// use std::collections::HashMap;
@@ -361,10 +371,19 @@ impl GameState {
     /// let player_view: PlayerView = game.player_view(P0);
     ///
     /// assert_eq!(player_view, PlayerView {
+    ///   observer_view: ObserverView {
+    ///     whose_turn: P0,
+    ///     discarded: Vector::new(),
+    ///     draw_pile_remaining: 36,
+    ///     top_card: Card(Four, Diamonds),
+    ///     current_suit: Diamonds,
+    ///     player_card_count: [
+    ///       (P0, 5),
+    ///       (P1, 5),
+    ///       (P2, 5),
+    ///     ].iter().copied().collect(),
+    ///   },
     ///   player: P0,
-    ///   whose_turn: P0,
-    ///   discarded: Vector::new(),
-    ///   draw_pile_remaining: 36,
     ///   hand: vector![
     ///     Card(Ace, Diamonds),
     ///     Card(Five, Spades),
@@ -372,36 +391,58 @@ impl GameState {
     ///     Card(Jack, Diamonds),
     ///     Card(King, Spades)
     ///   ],
-    ///   top_card: Card(Four, Diamonds),
-    ///   current_suit: Diamonds,
-    ///   player_card_count: [
-    ///     (P0, 5),
-    ///     (P1, 5),
-    ///     (P2, 5),
-    ///     (P3, 0),
-    ///     (P4, 0),
-    ///     (P5, 0),
-    ///     (P6, 0),
-    ///     (P7, 0),
-    ///   ].iter().copied().collect(),
     /// });
     /// # Ok(())
     /// # }
     /// ```
     pub fn player_view(&self, player: Player) -> PlayerView {
-        let hand = self.hands[player].clone().into();
-        let player_card_count: HashMap<Player, u8> = self
-            .hands
-            .iter()
-            .map(|(player, cards)| (player, cards.len() as u8))
+        PlayerView {
+            player,
+            hand: self.hands[player].clone().into(),
+            observer_view: self.observer_view(),
+        }
+    }
+
+    /// Returns the view that any observer is allowed to see
+    /// ```
+    /// use lib_table_top::games::crazy_eights::{
+    ///   GameState, NumberOfPlayers, Player::*, PlayerView, Settings, ObserverView
+    /// };
+    ///
+    /// use std::collections::HashMap;
+    /// use lib_table_top::common::rand::RngSeed;
+    /// use lib_table_top::common::deck::card::{Card, suit::Suit::*, rank::Rank::*};
+    /// use im::{Vector, vector};
+    /// use std::sync::Arc;
+    ///
+    /// # use lib_table_top::games::crazy_eights::ActionError;
+    /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([0; 32])};
+    /// let game = GameState::new(Arc::new(settings));
+    /// let observer_view: ObserverView = game.observer_view();
+    ///
+    /// assert_eq!(observer_view, ObserverView {
+    ///     whose_turn: P0,
+    ///     discarded: Vector::new(),
+    ///     draw_pile_remaining: 36,
+    ///     top_card: Card(Four, Diamonds),
+    ///     current_suit: Diamonds,
+    ///     player_card_count: [
+    ///       (P0, 5),
+    ///       (P1, 5),
+    ///       (P2, 5),
+    ///     ].iter().copied().collect(),
+    ///   });
+    /// ```
+    pub fn observer_view(&self) -> ObserverView {
+        let player_card_count: HashMap<Player, usize> = self
+            .players()
+            .map(|player| (player, self.hands[player].len()))
             .collect();
 
-        PlayerView {
+        ObserverView {
             current_suit: self.current_suit,
             discarded: self.discarded.clone(),
             draw_pile_remaining: self.draw_pile.len() as u8,
-            hand,
-            player,
             player_card_count,
             top_card: self.top_card,
             whose_turn: self.game_history.whose_turn(),
@@ -570,10 +611,7 @@ impl GameState {
     /// assert_eq!(game.status(), Win { player: P1 });
     /// ```
     pub fn status(&self) -> Status {
-        self.game_history()
-            .settings
-            .number_of_players
-            .players()
+        self.players()
             .filter(|&player| self.hands[player].is_empty())
             .map(|player| Win { player })
             .next()
@@ -636,6 +674,10 @@ impl GameState {
         }
 
         Ok(())
+    }
+
+    pub fn players(&self) -> impl Iterator<Item = Player> + Clone {
+        self.game_history.settings.number_of_players.players()
     }
 }
 

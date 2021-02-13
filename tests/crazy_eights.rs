@@ -22,10 +22,19 @@ fn test_serializing_crazy_eights_player_view() {
     assert!(game.make_move((player, action)).is_ok());
 
     let expected = json!({
-        "current_suit": "Spades",
-        "top_card": [8, "Hearts"],
-        "discarded": [[4, "Diamonds"], [11, "Diamonds"]],
-        "draw_pile_remaining": 36,
+        "observer_view": {
+            "whose_turn": "P2",
+            "current_suit": "Spades",
+            "top_card": [8, "Hearts"],
+            "discarded": [[4, "Diamonds"], [11, "Diamonds"]],
+            "draw_pile_remaining": 36,
+            "player_card_count": {
+                "P0": 4,
+                "P1": 4,
+                "P2": 5,
+            }
+        },
+        "player": "P2",
         "hand": [
             [7, "Clubs"],
             [10, "Hearts"],
@@ -33,18 +42,6 @@ fn test_serializing_crazy_eights_player_view() {
             [9, "Clubs"],
             [12, "Clubs"],
         ],
-        "player": "P2",
-        "whose_turn": "P2",
-        "player_card_count": {
-            "P0": 4,
-            "P1": 4,
-            "P2": 5,
-            "P3": 0,
-            "P4": 0,
-            "P5": 0,
-            "P6": 0,
-            "P7": 0,
-        }
     });
 
     let serialized = serde_json::to_value(game.current_player_view()).unwrap();
