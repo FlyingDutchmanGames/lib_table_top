@@ -33,12 +33,12 @@ fn test_serializing_crazy_eights_player_view() {
             [9, "Clubs"],
             [12, "Clubs"],
         ],
-        "player": 2,
-        "whose_turn": 2,
+        "player": "P2",
+        "whose_turn": "P2",
         "player_card_count": {
-            "0": 4,
-            "1": 4,
-            "2": 5,
+            "P0": 4,
+            "P1": 4,
+            "P2": 5,
         }
     });
 
