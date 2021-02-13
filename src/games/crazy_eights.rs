@@ -562,18 +562,7 @@ impl GameState {
                 }
 
                 if new_game.draw_pile.is_empty() {
-                    let mut new_rng = (*new_game.rng).clone();
-                    let mut draw_pile: Vec<Card> = self
-                        .draw_pile
-                        .iter()
-                        .chain(self.discarded.iter())
-                        .copied()
-                        .collect();
-                    new_game.draw_pile.extend(new_game.discarded.clone());
-                    draw_pile.shuffle(&mut new_rng);
-                    new_game.draw_pile = draw_pile.into();
-                    new_game.discarded = Vector::new();
-                    new_game.rng = Arc::new(new_rng);
+                    new_game.reshuffle();
                 }
 
                 new_game.hands[player].extend(new_game.draw_pile.pop_back().iter());
@@ -687,6 +676,21 @@ impl GameState {
 
     pub fn players(&self) -> impl Iterator<Item = Player> + Clone {
         self.game_history.settings.number_of_players.players()
+    }
+
+    fn reshuffle(&mut self) {
+        let mut new_rng = (*self.rng).clone();
+        let mut draw_pile: Vec<Card> = self
+            .draw_pile
+            .iter()
+            .chain(self.discarded.iter())
+            .copied()
+            .collect();
+        self.draw_pile.extend(self.discarded.clone());
+        draw_pile.shuffle(&mut new_rng);
+        self.draw_pile = draw_pile.into();
+        self.discarded = Vector::new();
+        self.rng = Arc::new(new_rng);
     }
 }
 
