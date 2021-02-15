@@ -4,11 +4,11 @@ use serde::{Deserialize, Serialize};
 use serde_repr::*;
 use thiserror::Error;
 
-/// Player pieces, X & O
+/// Player pieces, (P1 == X & P2 == O)
 #[derive(Copy, Clone, Debug, Enum, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Player {
-    X,
-    O,
+    P1,
+    P2,
 }
 
 impl Player {
@@ -16,13 +16,13 @@ impl Player {
     /// ```
     /// use lib_table_top::games::tic_tac_toe::Player::*;
     ///
-    /// assert_eq!(X, O.opponent());
-    /// assert_eq!(O, X.opponent());
+    /// assert_eq!(P1, P2.opponent());
+    /// assert_eq!(P2, P1.opponent());
     /// ```
     pub fn opponent(&self) -> Self {
         match self {
-            X => O,
-            O => X,
+            P1 => P2,
+            P2 => P1,
         }
     }
 }
@@ -164,7 +164,7 @@ impl GameState {
     /// )
     /// ```
     pub fn history(&self) -> impl Iterator<Item = Action> + '_ {
-        let players = [X, O].iter().cycle();
+        let players = [P1, P2].iter().cycle();
         self.history
             .iter()
             .zip(players)
@@ -188,8 +188,8 @@ impl GameState {
     ///
     /// // After making moves they're returned in the board
     /// assert_eq!(game.board()[Col1][Row1], None);
-    /// let game = game.apply_action((X, (Col1, Row1))).unwrap();
-    /// assert_eq!(game.board()[Col1][Row1], Some(X));
+    /// let game = game.apply_action((P1, (Col1, Row1))).unwrap();
+    /// assert_eq!(game.board()[Col1][Row1], Some(P1));
     /// ```
     pub fn board(&self) -> Board {
         let mut board = enum_map! { _ => enum_map! { _ => None }};
@@ -236,15 +236,15 @@ impl GameState {
     /// assert_eq!(
     ///   game.valid_actions().collect::<Vec<Action>>(),
     ///   vec![
-    ///     (X, (Col0, Row0)),
-    ///     (X, (Col0, Row1)),
-    ///     (X, (Col0, Row2)),
-    ///     (X, (Col1, Row0)),
-    ///     (X, (Col1, Row1)),
-    ///     (X, (Col1, Row2)),
-    ///     (X, (Col2, Row0)),
-    ///     (X, (Col2, Row1)),
-    ///     (X, (Col2, Row2))
+    ///     (P1, (Col0, Row0)),
+    ///     (P1, (Col0, Row1)),
+    ///     (P1, (Col0, Row2)),
+    ///     (P1, (Col1, Row0)),
+    ///     (P1, (Col1, Row1)),
+    ///     (P1, (Col1, Row2)),
+    ///     (P1, (Col2, Row0)),
+    ///     (P1, (Col2, Row1)),
+    ///     (P1, (Col2, Row2))
     ///   ]
     /// );
     /// ```
@@ -253,25 +253,25 @@ impl GameState {
         self.available().map(move |action| (whose_turn, action))
     }
 
-    /// Returns the player who plays the next turn, games always start with `X`
+    /// Returns the player who plays the next turn, games always start with `P1`
     /// ```
     /// use lib_table_top::games::tic_tac_toe::{GameState, Player::*};
     ///
-    /// // Games always start with `X`
+    /// // Games always start with `P1`
     /// let game: GameState = Default::default();
-    /// assert_eq!(game.whose_turn(), X);
+    /// assert_eq!(game.whose_turn(), P1);
     ///
-    /// // After X moves, it's O's turn
+    /// // After P1 moves, it's P2's turn
     /// let action = game.valid_actions().next().unwrap();
     /// let game = game.apply_action(action).unwrap();
     ///
-    /// assert_eq!(game.whose_turn(), O);
+    /// assert_eq!(game.whose_turn(), P2);
     /// ```
     pub fn whose_turn(&self) -> Player {
         if self.history.len() % 2 == 0 {
-            X
+            P1
         } else {
-            O
+            P2
         }
     }
 
@@ -321,8 +321,8 @@ impl GameState {
     ///
     /// // If the wrong player tries to make a move
     /// let result = game.apply_action((game.whose_turn().opponent(), (Col0, Row0)));
-    /// assert_eq!(result, Err(OtherPlayerTurn { attempted: O }));
-    /// assert_eq!(&result.unwrap_err().to_string(), "not O's turn");
+    /// assert_eq!(result, Err(OtherPlayerTurn { attempted: P2 }));
+    /// assert_eq!(&result.unwrap_err().to_string(), "not P2's turn");
     ///
     /// // The correct player can make a move
     /// let pos = (Col0, Row0);
