@@ -203,7 +203,7 @@ pub struct Settings {
     pub dimensions: Dimensions,
     p1_starting: Position,
     p2_starting: Position,
-    starting_removed_positions: Vec<Position>,
+    starting_removed: Vec<Position>,
 }
 
 /// Tools to build Marooned games
@@ -216,7 +216,7 @@ pub struct Settings {
 ///    .cols(4)
 ///    .p1_starting((Col(0), Row(0)))
 ///    .p2_starting((Col(1), Row(1)))
-///    .starting_removed_positions(vec![(Col(2), Row(2))])
+///    .starting_removed(vec![(Col(2), Row(2))])
 ///    .build_game()
 ///    .is_ok()
 /// )
@@ -235,7 +235,7 @@ pub struct SettingsBuilder {
     cols: u8,
     p1_starting: Option<Position>,
     p2_starting: Option<Position>,
-    starting_removed_positions: Vec<Position>,
+    starting_removed: Vec<Position>,
 }
 
 impl Default for SettingsBuilder {
@@ -246,7 +246,7 @@ impl Default for SettingsBuilder {
             rows,
             p1_starting: None,
             p2_starting: None,
-            starting_removed_positions: Default::default(),
+            starting_removed: Default::default(),
         }
     }
 }
@@ -265,8 +265,8 @@ impl SettingsBuilder {
         self
     }
 
-    pub fn starting_removed_positions(mut self, positions: Vec<Position>) -> Self {
-        self.starting_removed_positions = positions;
+    pub fn starting_removed(mut self, positions: Vec<Position>) -> Self {
+        self.starting_removed = positions;
         self
     }
 
@@ -285,7 +285,8 @@ impl SettingsBuilder {
     }
 
     pub fn build_game(self) -> Result<GameState, SettingsError> {
-        self.build().map(|settings| GameState::new(Arc::new(settings)))
+        self.build()
+            .map(|settings| GameState::new(Arc::new(settings)))
     }
 }
 
@@ -296,7 +297,7 @@ impl Settings {
         let p1_starting = builder.p1_starting.unwrap_or(default_starting[P1]);
         let p2_starting = builder.p2_starting.unwrap_or(default_starting[P2]);
 
-        for &pos in &builder.starting_removed_positions {
+        for &pos in &builder.starting_removed {
             if !dimensions.is_position_on_board(pos) {
                 return Err(CantRemovePositionNotOnBoard { pos });
             }
@@ -306,14 +307,14 @@ impl Settings {
                 return Err(PlayersMustStartOnBoard { player, position });
             }
 
-            if builder.starting_removed_positions.contains(&position) {
+            if builder.starting_removed.contains(&position) {
                 return Err(PlayerCantStartOnRemovedSquare { player, position });
             }
         }
 
-        let mut starting_removed_positions = builder.starting_removed_positions;
-        starting_removed_positions.sort();
-        starting_removed_positions.dedup();
+        let mut starting_removed = builder.starting_removed;
+        starting_removed.sort();
+        starting_removed.dedup();
 
         if p1_starting == p2_starting {
             return Err(PlayersCantStartAtSamePosition);
@@ -323,7 +324,7 @@ impl Settings {
             dimensions,
             p1_starting,
             p2_starting,
-            starting_removed_positions,
+            starting_removed,
         })
     }
 }
@@ -334,7 +335,7 @@ impl Default for Settings {
             dimensions: Default::default(),
             p1_starting: (Col(2), Row(0)),
             p2_starting: (Col(3), Row(7)),
-            starting_removed_positions: Default::default(),
+            starting_removed: Default::default(),
         }
     }
 }
@@ -460,26 +461,26 @@ impl GameState {
     ///
     /// // The default game settings start with no removed positions
     /// let game: GameState = Default::default();
-    /// let removed: Vec<Position> = game.removed_positions().collect();
+    /// let removed: Vec<Position> = game.removed().collect();
     /// assert_eq!(removed, vec![]);
     ///
     /// // You can start with some already removed
     /// let pos = (Col(1), Row(1));
-    /// let game = SettingsBuilder::new().starting_removed_positions(vec![pos]).build_game().unwrap();
-    /// let removed: Vec<Position> = game.removed_positions().collect();
+    /// let game = SettingsBuilder::new().starting_removed(vec![pos]).build_game().unwrap();
+    /// let removed: Vec<Position> = game.removed().collect();
     /// assert_eq!(removed, vec![pos]);
     /// ```
-    pub fn removed_positions(&self) -> impl Iterator<Item = Position> + '_ {
+    pub fn removed(&self) -> impl Iterator<Item = Position> + '_ {
         self.settings
-            .starting_removed_positions
+            .starting_removed
             .iter()
             .chain(self.history.iter().map(|Action { remove, .. }| remove))
             .copied()
     }
 
-    /// Calls `removable_positions_for_player` with the current player
-    pub fn removable_positions(&self) -> impl Iterator<Item = Position> + Clone + '_ {
-        self.removable_positions_for_player(self.whose_turn())
+    /// Calls `removable_for_player` with the current player
+    pub fn removable(&self) -> impl Iterator<Item = Position> + Clone + '_ {
+        self.removable_for_player(self.whose_turn())
     }
 
     /// Returns an iterator of removable positions for a player. Players can not remove the space
@@ -488,10 +489,10 @@ impl GameState {
     /// use lib_table_top::games::marooned::{SettingsBuilder, Row, Col, Player::*, Position};
     ///
     /// let game = SettingsBuilder::new().rows(2).cols(2).build_game().unwrap();
-    /// let removable: Vec<Position> = game.removable_positions_for_player(P1).collect();
+    /// let removable: Vec<Position> = game.removable_for_player(P1).collect();
     /// assert_eq!(removable, vec![(Col(0), Row(0)), (Col(1), Row(0)), (Col(1), Row(1))]);
     /// ```
-    pub fn removable_positions_for_player(
+    pub fn removable_for_player(
         &self,
         player: Player,
     ) -> impl Iterator<Item = Position> + Clone + '_ {
@@ -506,13 +507,13 @@ impl GameState {
     /// use lib_table_top::games::marooned::{GameState, Player::*};
     ///
     /// let game: GameState = Default::default();
-    /// for position in game.removable_positions_for_player(P1) {
+    /// for position in game.removable_for_player(P1) {
     ///    assert!(game.is_position_allowed_to_be_removed(position, P1));
     /// }
     /// ```
     pub fn is_position_allowed_to_be_removed(&self, position: Position, player: Player) -> bool {
         (self.settings.dimensions.is_position_on_board(position))
-            && (!self.removed_positions().any(|p| p == position))
+            && (!self.removed().any(|p| p == position))
             && !(self.player_position(player.opponent()) == position)
     }
 
@@ -535,7 +536,7 @@ impl GameState {
         &self,
         player: Player,
     ) -> impl Iterator<Item = Position> + Clone + '_ {
-        let removed: Vec<Position> = self.removed_positions().collect();
+        let removed: Vec<Position> = self.removed().collect();
         let other_player_position = self.player_position(player.opponent());
 
         self.settings
@@ -577,7 +578,7 @@ impl GameState {
 
         iproduct!(
             self.allowed_movement_targets_for_player(player),
-            self.removable_positions()
+            self.removable()
         )
         .filter(|(to, remove)| to != remove)
         .map(move |(to, remove)| Action { player, to, remove })
@@ -721,7 +722,7 @@ impl GameState {
                     "1"
                 } else if self.player_position(P2) == position {
                     "2"
-                } else if self.removed_positions().any(|pos| pos == position) {
+                } else if self.removed().any(|pos| pos == position) {
                     " "
                 } else {
                     "*"
@@ -781,7 +782,7 @@ mod tests {
 
         assert_eq!(
             SettingsBuilder::new()
-                .starting_removed_positions(vec![(Col(100), Row(100))])
+                .starting_removed(vec![(Col(100), Row(100))])
                 .build(),
             Err(CantRemovePositionNotOnBoard {
                 pos: (Col(100), Row(100))
@@ -793,7 +794,7 @@ mod tests {
         assert_eq!(
             SettingsBuilder::new()
                 .p1_starting(pos)
-                .starting_removed_positions(vec![pos])
+                .starting_removed(vec![pos])
                 .build(),
             Err(PlayerCantStartOnRemovedSquare {
                 player: P1,
@@ -874,7 +875,7 @@ mod tests {
     fn test_you_cant_remove_an_already_removed_position() {
         let remove = (Col(1), Row(1));
         let game = SettingsBuilder::new()
-            .starting_removed_positions(vec![remove])
+            .starting_removed(vec![remove])
             .build_game()
             .unwrap();
 
@@ -898,7 +899,7 @@ mod tests {
             .rows(rows)
             .cols(cols)
             .p1_starting(p1_starting_pos)
-            .starting_removed_positions(
+            .starting_removed(
                 Dimensions::new(rows, cols)
                     .unwrap()
                     .adjacenct_positions(p1_starting_pos)

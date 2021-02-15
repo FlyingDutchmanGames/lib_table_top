@@ -35,7 +35,7 @@ fn test_making_a_few_moves() {
     let game = GameState::new(Default::default());
     assert_eq!(game.status(), InProgress);
     assert_eq!(game.whose_turn(), P1);
-    assert_eq!(game.removed_positions().next(), None);
+    assert_eq!(game.removed().next(), None);
 
     let allowed_movements: Vec<Position> = game.allowed_movement_targets_for_player(P1).collect();
 
@@ -53,7 +53,7 @@ fn test_making_a_few_moves() {
     assert_eq!(game.player_position(P1), (Col(2), Row(0)));
     assert_eq!(game.player_position(P2), (Col(3), Row(7)));
 
-    let position_to_remove = game.removable_positions().next().unwrap();
+    let position_to_remove = game.removable().next().unwrap();
     let move_to = allowed_movements.first().unwrap().to_owned();
     let game = game
         .apply_action(Action {
@@ -65,7 +65,7 @@ fn test_making_a_few_moves() {
 
     assert_eq!(game.player_position(P1), move_to);
     assert_eq!(game.whose_turn(), P2);
-    assert_eq!(game.removed_positions().next(), Some(position_to_remove));
+    assert_eq!(game.removed().next(), Some(position_to_remove));
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn test_make_a_new_game_from_settings_builder() {
         .cols(9)
         .p1_starting((Col(0), Row(0)))
         .p2_starting((Col(1), Row(1)))
-        .starting_removed_positions(vec![(Col(2), Row(2))])
+        .starting_removed(vec![(Col(2), Row(2))])
         .build_game()
         .unwrap();
 
@@ -155,7 +155,7 @@ fn test_serializing_actions() {
 #[test]
 fn test_serializing_settings() {
     let settings = SettingsBuilder::new()
-        .starting_removed_positions(vec![(Col(0), Row(0))])
+        .starting_removed(vec![(Col(0), Row(0))])
         .build()
         .unwrap();
     let serialized = serde_json::to_value(&settings).unwrap();
@@ -165,7 +165,7 @@ fn test_serializing_settings() {
             "dimensions": {"cols": 6, "rows": 8},
             "p1_starting": [3, 0],
             "p2_starting": [2, 7],
-            "starting_removed_positions": [[0, 0]],
+            "starting_removed": [[0, 0]],
         })
     );
     let deserialized: Settings = serde_json::from_value(serialized).unwrap();
@@ -175,7 +175,7 @@ fn test_serializing_settings() {
 #[test]
 fn test_serializing_game_state() {
     let game: GameState = SettingsBuilder::new()
-        .starting_removed_positions(vec![(Col(0), Row(0))])
+        .starting_removed(vec![(Col(0), Row(0))])
         .build_game()
         .unwrap();
 
@@ -197,7 +197,7 @@ fn test_serializing_game_state() {
                 },
                 "p1_starting": [3, 0],
                 "p2_starting": [2, 7],
-                "starting_removed_positions": [[0, 0]]
+                "starting_removed": [[0, 0]]
             },
         })
     );
