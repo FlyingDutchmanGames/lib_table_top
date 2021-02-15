@@ -285,7 +285,7 @@ impl SettingsBuilder {
     }
 
     pub fn build_game(self) -> Result<GameState, SettingsError> {
-        self.build().map(|settings| GameState::new(settings))
+        self.build().map(|settings| GameState::new(Arc::new(settings)))
     }
 }
 
@@ -368,9 +368,9 @@ pub struct GameState {
 impl GameState {
     /// Makes a new game, you're better off using [`SettingsBuilder`](struct@SettingsBuilder) to
     /// construct a new game
-    pub fn new(settings: Settings) -> Self {
+    pub fn new(settings: Arc<Settings>) -> Self {
         Self {
-            settings: Arc::new(settings),
+            settings,
             history: Vector::new(),
         }
     }
