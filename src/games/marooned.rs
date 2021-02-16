@@ -201,9 +201,9 @@ impl Default for Dimensions {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Settings {
     pub dimensions: Dimensions,
-    p1_starting: Position,
-    p2_starting: Position,
-    starting_removed: Vec<Position>,
+    pub p1_starting: Position,
+    pub p2_starting: Position,
+    pub starting_removed: Vec<Position>,
 }
 
 /// Tools to build Marooned games
