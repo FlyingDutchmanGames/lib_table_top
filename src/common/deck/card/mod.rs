@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
-pub mod rank;
-pub mod suit;
+mod rank;
+mod suit;
 
-use rank::*;
-use suit::*;
+pub use rank::Rank;
+pub use suit::{Color, Suit};
 
 use std::fmt;
 

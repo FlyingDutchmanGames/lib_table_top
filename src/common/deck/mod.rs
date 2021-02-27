@@ -1,9 +1,12 @@
-pub mod card;
+mod card;
 
-use self::card::Card;
-use self::card::{rank::Rank::*, suit::Suit::*};
+pub use self::card::Card;
+pub use self::card::{Color, Rank, Suit};
 
-pub type StandardDeck = [Card; 52];
+use Rank::*;
+use Suit::*;
+
+type StandardDeck = [Card; 52];
 
 pub const STANDARD_DECK: StandardDeck = [
     Card(Ace, Hearts),
