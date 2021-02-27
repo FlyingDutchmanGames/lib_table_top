@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
 
-use crate::common::deck::card::{rank::Rank, suit::Suit, Card};
 use crate::common::deck::STANDARD_DECK;
+use crate::common::deck::{Card, Rank, Suit};
 use crate::common::rand::RngSeed;
 
 #[derive(Clone, Copy, Debug, Enum, Hash, PartialEq, Eq, Serialize, Deserialize)]
@@ -145,7 +145,7 @@ impl PlayerView {
     /// Returns the valid actions for a player. Player views are specific to a turn and player.
     /// There are no valid actions if it's not that player's turn
     /// ```
-    /// use lib_table_top::common::deck::card::{rank::Rank::*, suit::Suit::*, Card};
+    /// use lib_table_top::common::deck::{Rank::*, Suit::*, Card};
     /// use lib_table_top::games::crazy_eights::{
     ///   Action::*, GameState, NumberOfPlayers, Player::*, Settings
     /// };
@@ -360,7 +360,7 @@ impl GameState {
     ///
     /// use std::collections::HashMap;
     /// use lib_table_top::common::rand::RngSeed;
-    /// use lib_table_top::common::deck::card::{Card, suit::Suit::*, rank::Rank::*};
+    /// use lib_table_top::common::deck::{Card, Suit::*, Rank::*};
     /// use im::{Vector, vector};
     /// use std::sync::Arc;
     ///
@@ -411,7 +411,7 @@ impl GameState {
     ///
     /// use std::collections::HashMap;
     /// use lib_table_top::common::rand::RngSeed;
-    /// use lib_table_top::common::deck::card::{Card, suit::Suit::*, rank::Rank::*};
+    /// use lib_table_top::common::deck::{Card, Suit::*, Rank::*};
     /// use im::{Vector, vector};
     /// use std::sync::Arc;
     ///
@@ -455,7 +455,7 @@ impl GameState {
     ///   GameState, NumberOfPlayers, Player::*, PlayerView, Action::*, ActionError::*, Settings
     /// };
     /// use lib_table_top::common::rand::RngSeed;
-    /// use lib_table_top::common::deck::card::{Card, suit::Suit::*, rank::Rank::*};
+    /// use lib_table_top::common::deck::{Card, Suit::*, Rank::*};
     /// use std::sync::Arc;
     ///
     /// // You can play a valid action
