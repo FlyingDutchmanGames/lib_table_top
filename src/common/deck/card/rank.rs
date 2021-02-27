@@ -1,5 +1,7 @@
 use serde_repr::*;
 
+/// The pips of a standard deck. Important note that the cards have `repr(u8)` and Ace is
+/// represented by 1
 #[derive(
     Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord, Serialize_repr, Deserialize_repr,
 )]
@@ -20,11 +22,6 @@ pub enum Rank {
     King = 13,
 }
 
-enum Ordering {
-    AceHigh,
-    AceLow,
-}
-use Ordering::*;
 use Rank::*;
 
 impl Rank {
@@ -32,39 +29,72 @@ impl Rank {
         Ace, Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King,
     ];
 
+    /// Returns the next card, with Ace being high
+    /// ```
+    /// use lib_table_top::common::deck::Rank::*;
+    ///
+    /// assert_eq!(Ace.next_with_ace_high(), None);
+    /// assert_eq!(King.next_with_ace_high(), Some(Ace));
+    /// ```
     pub fn next_with_ace_high(&self) -> Option<Self> {
-        self.next(AceHigh)
-    }
-
-    pub fn next_with_ace_low(&self) -> Option<Self> {
-        self.next(AceLow)
-    }
-
-    pub fn previous_with_ace_high(&self) -> Option<Self> {
-        self.previous(AceHigh)
-    }
-
-    pub fn previous_with_ace_low(&self) -> Option<Self> {
-        self.previous(AceLow)
-    }
-
-    fn next(&self, order: Ordering) -> Option<Self> {
-        match (order, self) {
-            (AceHigh, Ace) => None,
-            (AceLow, King) => None,
+        match self {
+            Ace => None,
             _ => Some(self.next_with_wrapping()),
         }
     }
 
-    fn previous(&self, order: Ordering) -> Option<Self> {
-        match (order, self) {
-            (AceHigh, Two) => None,
-            (AceLow, Ace) => None,
+    /// Returns the next card, with Ace being low
+    /// ```
+    /// use lib_table_top::common::deck::Rank::*;
+    ///
+    /// assert_eq!(King.next_with_ace_low(), None);
+    /// assert_eq!(Ace.next_with_ace_low(), Some(Two));
+    /// ```
+    pub fn next_with_ace_low(&self) -> Option<Self> {
+        match self {
+            King => None,
+            _ => Some(self.next_with_wrapping()),
+        }
+    }
+
+    /// Returns the previous card, with Ace being high
+    /// ```
+    /// use lib_table_top::common::deck::Rank::*;
+    ///
+    /// assert_eq!(Two.previous_with_ace_high(), None);
+    /// assert_eq!(Ace.previous_with_ace_high(), Some(King));
+    /// ```
+    pub fn previous_with_ace_high(&self) -> Option<Self> {
+        match self {
+            Two => None,
             _ => Some(self.previous_with_wrapping()),
         }
     }
 
-    fn next_with_wrapping(&self) -> Self {
+    /// Returns the previous card, with Ace being high
+    /// ```
+    /// use lib_table_top::common::deck::Rank::*;
+    ///
+    /// assert_eq!(Two.previous_with_ace_low(), Some(Ace));
+    /// assert_eq!(Ace.previous_with_ace_low(), None);
+    /// ```
+    pub fn previous_with_ace_low(&self) -> Option<Self> {
+        match self {
+            Ace => None,
+            _ => Some(self.previous_with_wrapping()),
+        }
+    }
+
+    /// Provides the next highest card, wraps from King => Ace => Two
+    /// ```
+    /// use lib_table_top::common::deck::Rank::*;
+    ///
+    /// assert_eq!(King.next_with_wrapping(), Ace);
+    /// assert_eq!(Ace.next_with_wrapping(), Two);
+    /// assert_eq!(Two.next_with_wrapping(), Three);
+    /// // etc ..
+    /// ```
+    pub fn next_with_wrapping(&self) -> Self {
         match self {
             Ace => Two,
             Two => Three,
@@ -82,7 +112,16 @@ impl Rank {
         }
     }
 
-    fn previous_with_wrapping(&self) -> Self {
+    /// Provides the next lowest card, wraps from Two => Ace => King
+    /// ```
+    /// use lib_table_top::common::deck::Rank::*;
+    ///
+    /// assert_eq!(Two.previous_with_wrapping(), Ace);
+    /// assert_eq!(Ace.previous_with_wrapping(), King);
+    /// assert_eq!(King.previous_with_wrapping(), Queen);
+    /// // etc ..
+    /// ```
+    pub fn previous_with_wrapping(&self) -> Self {
         match self {
             Ace => King,
             King => Queen,
@@ -124,7 +163,6 @@ mod tests {
         ];
 
         for (test, expected) in test_cases.iter() {
-            assert_eq!(test.next(AceHigh), *expected);
             assert_eq!(test.next_with_ace_high(), *expected);
         }
     }
@@ -148,7 +186,6 @@ mod tests {
         ];
 
         for (test, expected) in test_cases.iter() {
-            assert_eq!(test.next(AceLow), *expected);
             assert_eq!(test.next_with_ace_low(), *expected);
         }
     }
@@ -172,7 +209,6 @@ mod tests {
         ];
 
         for (test, expected) in test_cases.iter() {
-            assert_eq!(test.previous(AceHigh), *expected);
             assert_eq!(test.previous_with_ace_high(), *expected);
         }
     }
@@ -196,7 +232,6 @@ mod tests {
         ];
 
         for (test, expected) in test_cases.iter() {
-            assert_eq!(test.previous(AceLow), *expected);
             assert_eq!(test.previous_with_ace_low(), *expected);
         }
     }
