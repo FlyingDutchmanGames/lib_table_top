@@ -23,18 +23,18 @@ fn test_serializing_crazy_eights_player_view() {
 
     let expected = json!({
         "observer_view": {
-            "whose_turn": "P2",
+            "whose_turn": "P3",
             "current_suit": "Spades",
             "top_card": [8, "Hearts"],
             "discarded": [[4, "Diamonds"], [11, "Diamonds"]],
             "draw_pile_remaining": 36,
             "player_card_count": {
-                "P0": 4,
                 "P1": 4,
-                "P2": 5,
+                "P2": 4,
+                "P3": 5,
             }
         },
-        "player": "P2",
+        "player": "P3",
         "hand": [
             [7, "Clubs"],
             [10, "Hearts"],
