@@ -15,7 +15,6 @@ use crate::common::rand::RngSeed;
 #[derive(Clone, Copy, Debug, Enum, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum Player {
-    P0 = 0,
     P1 = 1,
     P2 = 2,
     P3 = 3,
@@ -23,6 +22,7 @@ pub enum Player {
     P5 = 5,
     P6 = 6,
     P7 = 7,
+    P8 = 8,
 }
 
 use Player::*;
@@ -61,21 +61,21 @@ impl NumberOfPlayers {
     ///
     /// assert_eq!(
     ///   NumberOfPlayers::Two.players().collect::<Vec<Player>>(),
-    ///   vec![P0, P1]
+    ///   vec![P1, P2]
     /// );
     ///
     /// assert_eq!(
     ///   NumberOfPlayers::Four.players().collect::<Vec<Player>>(),
-    ///   vec![P0, P1, P2, P3]
+    ///   vec![P1, P2, P3, P4]
     /// );
     ///
     /// assert_eq!(
     ///   NumberOfPlayers::Eight.players().collect::<Vec<Player>>(),
-    ///   vec![P0, P1, P2, P3, P4, P5, P6, P7]
+    ///   vec![P1, P2, P3, P4, P5, P6, P7, P8]
     /// );
     /// ```
     pub fn players(&self) -> impl Iterator<Item = Player> + Clone {
-        [P0, P1, P2, P3, P4, P5, P6, P7]
+        [P1, P2, P3, P4, P5, P6, P7, P8]
             .iter()
             .take(*self as usize)
             .copied()
@@ -155,12 +155,12 @@ impl PlayerView {
     /// let game = GameState::new(Arc::new(Settings { number_of_players: NumberOfPlayers::Two, seed: RngSeed([1; 32])}));
     ///
     /// // If it's not that player's turn the valid actions are empty
-    /// assert!(game.whose_turn() != P1);
-    /// assert_eq!(game.player_view(P1).valid_actions(), vec![]);
+    /// assert!(game.whose_turn() != P2);
+    /// assert_eq!(game.player_view(P2).valid_actions(), vec![]);
     ///
     /// // The player who's turn it is has actions to take
-    /// assert!(game.whose_turn() == P0);
-    /// assert_eq!(game.player_view(P0).valid_actions(), vec![
+    /// assert!(game.whose_turn() == P1);
+    /// assert_eq!(game.player_view(P1).valid_actions(), vec![
     ///   Play(Card(Nine, Clubs)),
     ///   Play(Card(Seven, Clubs))
     /// ]);
@@ -254,7 +254,7 @@ impl GameState {
     ///
     /// let settings = Settings {number_of_players: NumberOfPlayers::Two, seed: RngSeed([0; 32])};
     /// let game = GameState::new(Arc::new(settings));
-    /// assert_eq!(game.whose_turn(), P0);
+    /// assert_eq!(game.whose_turn(), P1);
     /// ```
     pub fn new(settings: Arc<Settings>) -> Self {
         let mut rng = settings.seed.into_rng();
@@ -328,7 +328,7 @@ impl GameState {
     ///
     /// let settings = Settings {number_of_players: NumberOfPlayers::Two, seed: RngSeed([0; 32])};
     /// let game = GameState::new(Arc::new(settings));
-    /// assert_eq!(game.whose_turn(), P0);
+    /// assert_eq!(game.whose_turn(), P1);
     /// ```
     pub fn whose_turn(&self) -> Player {
         self.game_history.whose_turn()
@@ -368,22 +368,22 @@ impl GameState {
     /// # fn main() -> Result<(), ActionError> {
     /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([0; 32])};
     /// let game = GameState::new(Arc::new(settings));
-    /// let player_view: PlayerView = game.player_view(P0);
+    /// let player_view: PlayerView = game.player_view(P1);
     ///
     /// assert_eq!(player_view, PlayerView {
     ///   observer_view: ObserverView {
-    ///     whose_turn: P0,
+    ///     whose_turn: P1,
     ///     discarded: Vector::new(),
     ///     draw_pile_remaining: 36,
     ///     top_card: Card(Four, Diamonds),
     ///     current_suit: Diamonds,
     ///     player_card_count: [
-    ///       (P0, 5),
     ///       (P1, 5),
     ///       (P2, 5),
+    ///       (P3, 5),
     ///     ].iter().copied().collect(),
     ///   },
-    ///   player: P0,
+    ///   player: P1,
     ///   hand: vector![
     ///     Card(Ace, Diamonds),
     ///     Card(Five, Spades),
@@ -421,15 +421,15 @@ impl GameState {
     /// let observer_view: ObserverView = game.observer_view();
     ///
     /// assert_eq!(observer_view, ObserverView {
-    ///     whose_turn: P0,
+    ///     whose_turn: P1,
     ///     discarded: Vector::new(),
     ///     draw_pile_remaining: 36,
     ///     top_card: Card(Four, Diamonds),
     ///     current_suit: Diamonds,
     ///     player_card_count: [
-    ///       (P0, 5),
     ///       (P1, 5),
     ///       (P2, 5),
+    ///       (P3, 5),
     ///     ].iter().copied().collect(),
     ///   });
     /// ```
@@ -462,23 +462,23 @@ impl GameState {
     /// let settings = Settings {number_of_players: NumberOfPlayers::Three, seed: RngSeed([1; 32])};
     /// let game = GameState::new(Arc::new(settings));
     /// let action = game.current_player_view().valid_actions().pop().unwrap();
-    /// let game = game.apply_action((P0, action)).unwrap();
+    /// let game = game.apply_action((P1, action)).unwrap();
     ///
     /// // Trying to play when it's not your turn is an error
-    /// let err = game.apply_action((P2, Draw));
+    /// let err = game.apply_action((P1, Draw));
     /// assert_eq!(
     ///   err,
-    ///   Err(NotPlayerTurn { attempted_player: P2, correct_player: P1 })
+    ///   Err(NotPlayerTurn { attempted_player: P1, correct_player: P2 })
     /// );
     ///
     /// assert_eq!(
     ///   &err.unwrap_err().to_string(),
-    ///   "It\'s P1\'s turn and not P2\'s turn",
+    ///   "It\'s P2\'s turn and not P1\'s turn",
     /// );
     ///
     ///
     /// // Trying to play an eight as a regular card is illegal
-    /// let err = game.apply_action((P1, Play(Card(Eight, Spades))));
+    /// let err = game.apply_action((P2, Play(Card(Eight, Spades))));
     /// assert_eq!(
     ///   err,
     ///   Err(CantPlayEightAsRegularCard { card: Card(Eight, Spades) })
@@ -490,7 +490,7 @@ impl GameState {
     /// );
     ///
     /// // Trying to play a non eight as an eight is illegal
-    /// let err = game.apply_action((P1, PlayEight(Card(Seven, Spades), Hearts)));
+    /// let err = game.apply_action((P2, PlayEight(Card(Seven, Spades), Hearts)));
     /// assert_eq!(
     ///   err,
     ///   Err(CantPlayNonEightAsEight { card: Card(Seven, Spades) })
@@ -502,34 +502,34 @@ impl GameState {
     /// );
     ///
     /// // Trying to draw a card when you have a valid move isn't legal
-    /// let err = game.apply_action((P1, Draw));
+    /// let err = game.apply_action((P2, Draw));
     /// assert_eq!(
     ///   err,
     ///   Err(CantDrawWhenYouHavePlayableCards {
-    ///     player: P1,
+    ///     player: P2,
     ///     playable: vec![Card(Five, Spades)]
     ///   })
     /// );
     ///
     /// assert_eq!(
     ///   &err.unwrap_err().to_string(),
-    ///   "Player P1 can\'t draw because they have playable cards [Card(Five, Spades)]",
+    ///   "Player P2 can\'t draw because they have playable cards [Card(Five, Spades)]",
     /// );
     ///
     /// // Trying to play a card you don't have is an error
-    /// let err = game.apply_action((P1, Play(Card(Jack, Spades))));
+    /// let err = game.apply_action((P2, Play(Card(Jack, Spades))));
     /// assert_eq!(
     ///   err,
-    ///   Err(PlayerDoesNotHaveCard { player: P1, card: Card(Jack, Spades) })
+    ///   Err(PlayerDoesNotHaveCard { player: P2, card: Card(Jack, Spades) })
     /// );
     ///
     /// assert_eq!(
     ///   &err.unwrap_err().to_string(),
-    ///   "Player P1 does not have card Card(Jack, Spades)",
+    ///   "Player P2 does not have card Card(Jack, Spades)",
     /// );
     ///
     /// // Trying to play a card you have but doesn't follow suit is an error
-    /// let err = game.apply_action((P1, Play(Card(Ten, Clubs))));
+    /// let err = game.apply_action((P2, Play(Card(Ten, Clubs))));
     /// assert_eq!(
     ///   err,
     ///   Err(CardCantBePlayed {
@@ -606,7 +606,7 @@ impl GameState {
     ///   .next()
     ///   .unwrap();
     ///
-    /// assert_eq!(game.status(), Win { player: P1 });
+    /// assert_eq!(game.status(), Win { player: P2 });
     /// ```
     pub fn status(&self) -> Status {
         self.players()
@@ -734,6 +734,6 @@ impl GameHistory {
 
     fn whose_turn(&self) -> Player {
         let index = self.history.len() % (self.settings.number_of_players as usize);
-        [P0, P1, P2, P3, P4, P5, P6, P7][index]
+        [P1, P2, P3, P4, P5, P6, P7, P8][index]
     }
 }
