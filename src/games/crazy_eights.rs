@@ -320,6 +320,11 @@ impl GameState {
         self.game_history.history()
     }
 
+    /// Returns the settings for a game
+    pub fn settings(&self) -> &Settings {
+        self.game_history.settings.as_ref()
+    }
+
     /// Gives the next player up
     /// ```
     /// use lib_table_top::games::crazy_eights::{GameState, NumberOfPlayers, Player::*, Settings};
